@@ -65,7 +65,7 @@ Each maps to at least one actor and one feature area — ensuring **zero orphane
 | `COS-FR004` | **Discount & Promo Code Application** | The system shall accept promotion codes, validate expiry and eligibility, and adjust the order total accordingly. Only one code per order unless configured otherwise. | Customer, Cashier, Admin | Pricing |
 | `COS-FR005` | **Payment Processing** |The system shall simulate payment by allowing the customer to choose Cash or Mock Card payment and return success or failure.| Customer, Cashier, Payment Simulator | Checkout |
 | `COS-FR006` | **Order Confirmation & Receipt** | On successful payment, the system shall generate a unique order ID, display an on-screen confirmation | Customer, Data Storage | Checkout |
-| `COS-FR007` | **Live Order Status Tracking** | The customer shall view a simple order status page showing Pending, Confirmed, or Cancelled. | Customer, Data Storage | Real-time |
+| `COS-FR007` | **Live Order Status Tracking** | The customer shall view a simple order status page showing Pending, Confirmed, or Cancelled. | Customer, Data Storage | Order Status |
 | `COS-FR008` | **Menu & Inventory Management** | System Admin shall add, update, and mark menu items as unavailable. | Admin | Menu Management |
 
 
@@ -76,7 +76,7 @@ Each maps to at least one actor and one feature area — ensuring **zero orphane
 | ID | Requirement | Description | Actors | Feature Area |
 |----|-------------|-------------|--------|--------------|
 | `COS-NFR001` | **Performance** | Menu page initial load shall complete in ≤ 2 seconds on a 4G connection. Checkout submission shall return a response within 3 seconds under 200 concurrent users. | All actors | Performance |
-| `COS-NFR002` | **Security** | The backend shall validate prices, item IDs, and quantities server-side and shall not trust client-submitted totals. | Customer, Payment GW | Compliance |
+| `COS-NFR002` | **Security** | The backend shall validate prices, item IDs, and quantities server-side and shall not trust client-submitted totals. | Customer, Cashier, Admin, Data Storage | Compliance |
 | `COS-NFR003` | **Availability** | The system shall handle invalid inputs without crashing and shall display clear error messages.| All actors | Reliability |
 | `COS-NFR004` | **Accessibility** | The customer shall complete checkout in no more than 5 steps.| Customer | Compliance |
 
@@ -130,7 +130,7 @@ The **AI User Avatar** adopts two personas to uncover hidden requirements:
 **Hidden Requirement `COS-FR013` — Idempotent Checkout:**
 The checkout endpoint shall be idempotent. A unique idempotency key (cart ID + timestamp hash) shall be generated client-side and sent with every payment request. Duplicate submissions within 60 seconds using the same key shall return the original result without re-charging the customer.
 
-**Tags:** `Payment Gateway` · `Idempotency` · `Checkout`
+**Tags:** `Payment Simulator` · `Idempotency` · `Checkout`
 
 ---
 
@@ -166,19 +166,19 @@ Cart contents shall be persisted to a server-side session keyed to the customer'
 
 ---
 
-### EC-04 Invalid Promo Code Attempts
+### EC-04 — Invalid Promo Code
 
-> 🟡 **Severity: High**
+> 🟡 **Severity: Medium**
 
-**Persona (Malicious Actor):**
-> *"I wrote a script to try 10,000 promo codes in a loop — SAVE10, SAVE20, SAVE30 — until one worked."*
+**Persona (Frustrated Customer):**
+> *"I entered a wrong promo code, but I was not sure whether the code was invalid or the system was broken."*
 
-**Root Cause:** The promo-code validation endpoint had no rate limiting or attempt throttling.
+**Root Cause:** The system did not provide a clear message for invalid promo codes.
 
-**Hidden Requirement `COS-FR016` — Rate Limiting on Promo Code Endpoint:**
-The promo-code validation endpoint shall apply rate limiting of ≤ 5 failed attempts per session per 10-minute window. On exceeding this threshold, the endpoint shall return HTTP `429 Too Many Requests` and lock that session from further code attempts for 15 minutes. Every breach shall be logged with session ID and IP address.
+**Hidden Requirement `COS-FR016` — Clear Promo Code Validation:**
+The system shall reject invalid or expired promo codes and display a clear error message without changing the cart total.
 
-**Tags:** `Security` · `Rate Limiting` · `Pricing`
+**Tags:** `Customer` · `Promo Code` · `Pricing`
 
 ---
 
