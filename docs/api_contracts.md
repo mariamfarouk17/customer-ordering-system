@@ -1,21 +1,22 @@
 # Customer Ordering System - API Contracts
 
+Base URL: /api
+
 ---
 
 ## GET /menu
-### Description
-Returns menu items grouped by category
+Returns menu grouped by category.
 
-### Response (200 OK)
+Response 200:
 {
   "categories": [
     {
-      "name": "Category Name",
+      "name": "Wraps",
       "items": [
         {
-          "id": "string",
-          "name": "string",
-          "price": number,
+          "id": 1,
+          "name": "Chicken Shawarma",
+          "price": 6.5,
           "available": true
         }
       ]
@@ -25,145 +26,131 @@ Returns menu items grouped by category
 
 ---
 
-## POST /cart/items
-### Description
-Add item to shopping cart
+## POST /cart/add
+Add item to cart.
 
-### Request
+Request:
 {
-  "item_id": "string",
-  "quantity": number
+  "item_id": 1,
+  "quantity": 2
 }
 
-### Rules
-- quantity must be between 1 and 10
-- item must be available
-
-### Response (200 OK)
+Response 200:
 {
-  "status": "success",
-  "cart_total": number
+  "cart_total": 13.0
 }
 
-### Error (400)
+Response 400:
 {
-  "status": "error",
-  "message": "Invalid item or quantity"
+  "error": "Item not available"
 }
 
 ---
 
-## DELETE /cart/items/{item_id}
-### Description
-Remove item from cart
+## POST /cart/remove
+Remove item from cart.
 
-### Response (200 OK)
+Request:
 {
-  "status": "success",
-  "cart_total": number
+  "item_id": 1
 }
 
-### Error (404)
+Response 200:
 {
-  "status": "error",
-  "message": "Item not found in cart"
+  "cart_total": 0
 }
 
 ---
 
-## POST /orders
-### Description
-Create new order after validation
+## POST /promo/apply
+Apply promo code.
 
-### Request
+Request:
 {
-  "items": [
-    {
-      "item_id": "string",
-      "quantity": number
-    }
-  ],
-  "order_type": "dine-in | takeaway",
-  "table_number": "optional string",
-  "delivery_address": "string"
+  "code": "SAVE10"
 }
 
-### Server Rules
-- Stock must be validated at checkout
-- Price is calculated on server side
-- Cart must not be empty
-
-### Response (200 OK)
+Response 200:
 {
-  "status": "success",
-  "order_id": "string"
+  "discount": 10,
+  "new_total": 11.7
 }
 
-### Errors
-400 → invalid input  
-409 → cart empty  
-422 → stock not available  
-
----
-
-## POST /payments/checkout
-### Description
-Process payment (mock system)
-
-### Request
+Response 400:
 {
-  "order_id": "string",
-  "payment_method": "cash | mock_card",
-  "idempotency_key": "string"
-}
-
-### Rules
-- duplicate requests with same key must not charge twice
-
-### Response (200 OK)
-{
-  "status": "success",
-  "payment_status": "confirmed"
-}
-
-### Error (402)
-{
-  "status": "error",
-  "message": "Payment failed"
+  "error": "Invalid or expired promo code"
 }
 
 ---
 
-## POST /promo/validate
-### Description
-Validate promo code
+## POST /checkout
+Process order checkout.
 
-### Request
+Request:
 {
-  "code": "string",
-  "order_id": "string"
+  "order_type": "Dine-In",
+  "table_number": 5,
+  "payment_method": "Mock Card",
+  "idempotency_key": "abc123"
 }
 
-### Response (200 OK)
+Response 200:
 {
-  "valid": true,
-  "discount": number
+  "order_id": "ORD-00042",
+  "status": "Confirmed"
 }
 
-### Error (429)
+Response 402:
 {
-  "status": "error",
-  "message": "Too many attempts"
+  "error": "Payment failed"
+}
+
+Response 422:
+{
+  "error": "Stock or price validation failed"
 }
 
 ---
 
-## GET /orders/{order_id}
-### Description
-Track order status
+## GET /order/<order_id>
+Get order status.
 
-### Response
+Response 200:
 {
-  "order_id": "string",
-  "status": "Pending | Confirmed | Cancelled"
+  "order_id": "ORD-00042",
+  "status": "Pending",
+  "items": []
+}
+
+---
+
+## POST /admin/menu
+Add new menu item.
+
+Request:
+{
+  "name": "Falafel Wrap",
+  "price": 5.5,
+  "category": "Wraps"
+}
+
+Response 201:
+{
+  "message": "Item added"
+}
+
+---
+
+## PUT /admin/menu/<id>
+Update menu item.
+
+Request:
+{
+  "price": 6.0,
+  "available": false
+}
+
+Response 200:
+{
+  "message": "Updated successfully"
 }
