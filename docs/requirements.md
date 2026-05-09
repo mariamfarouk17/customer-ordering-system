@@ -24,22 +24,21 @@ Three actor tiers define every external entity that interacts with or is affecte
 
 | Actor | Description | Goals |
 |-------|-------------|-------|
-| **Customer** | Directly interacts with the ordering UI to browse, select, customise, and pay for food items | Browse menu by category / search · Add/remove items, adjust quantities · Apply discount codes & loyalty points · Choose dine-in, takeaway, or delivery · Pay and receive order confirmation · Track live order status |
+| **Customer** | Directly interacts with the ordering UI to browse, select, and pay for food items | Browse menu · Search menu items · Add/remove items · Adjust quantities · Apply promo code · Choose dine-in or takeaway · Confirm order · View order status |
 
 ### 🟣 Supporting Actors — Secondary
 
 | Actor | Description | Goals |
 |-------|-------------|-------|
-| **Cashier / Staff** | Assists customers at the counter, handles special requests, and overrides the system when needed | Create or modify orders on behalf of customers · Apply manual discounts or voids · Mark items as unavailable · Process cash payments |
-| **System Admin** | Manages menu content, pricing, promotions, user accounts, and system configuration | CRUD menu items & categories · Configure tax rates & fees · Manage staff accounts & roles · Configure integration endpoints |
+| **Cashier / Staff** | Assists customers at the counter and creates orders on behalf of customers | Create or modify orders on behalf of customers · Mark items as unavailable  |
+| **System Admin** | Manages menu content, pricing, promotions, user accounts, and system configuration | CRUD menu items & categories · Add, update, and manage menu items and categories.|
 
 ### ⚫ Offstage Actors
 
 | Actor | Description | Interaction |
 |-------|-------------|-------------|
-| **Payment Gateway** | Processes card/digital-wallet transactions. Never directly visible to the customer UI layer | Authorise & capture charges · Return success / failure / 3DS challenge · Issue refunds on request |
-| **Notification Service** | Sends SMS/email order confirmations and status updates. Acts on system events, not direct requests | Order confirmation on payment success · Ready/dispatched status alerts · Failed-payment retry prompts |
-| **Kitchen Display System (KDS)** | Receives confirmed orders as a downstream consumer. Does not initiate any ordering flows | Receive new order tickets · Acknowledge item completion · Signal order-ready back to COS |
+| **Data Storage** | Stores menu items, cart data, promo codes, and orders. It is not directly used by the customer. | Backend reads menu data and saves confirmed orders. |
+| **Payment Simulator** | A mock payment component used instead of a real payment gateway. | Returns payment success or failure for testing checkout. |
 
 ### Actor Classification Rationale
 
@@ -48,9 +47,8 @@ Three actor tiers define every external entity that interacts with or is affecte
 | Customer | Primary | Directly initiates the core use case (placing an order) without being prompted |
 | Cashier / Staff | Supporting | Enables or assists the primary use case but does not own the ordering journey |
 | System Admin | Supporting | Maintains system integrity so the primary use case can succeed; acts outside the order flow |
-| Payment Gateway | Offstage | Fulfils a required function but has no UI presence; interaction is API-only |
-| Notification Service | Offstage | Reacts to system events; invisible to customer during ordering |
-| Kitchen Display System | Offstage | Downstream consumer; cannot initiate or cancel orders |
+| Data Storage | Offstage | It supports the system by storing and retrieving menu and order data, but it does not directly initiate any user interaction. |
+| Payment Simulator | Offstage | It simulates external payment behavior for validation without requiring real payment gateway integration. |
 
 ---
 
@@ -61,18 +59,15 @@ Each maps to at least one actor and one feature area — ensuring **zero orphane
 
 | ID | Requirement | Description | Actors | Feature Area |
 |----|-------------|-------------|--------|--------------|
-| `COS-FR001` | **Browse & Search Menu** | The system shall display menu items grouped by category with images, descriptions, prices, and allergen flags. A real-time search with fuzzy matching shall be available. | Customer, Admin | Browsing |
+| `COS-FR001` | **Browse & Search Menu** | The system shall display menu items grouped by category with names, prices, and availability status. | Customer, Admin | Browsing |
 | `COS-FR002` | **Cart Management** | A customer shall add, remove, and update the quantity of items in a persistent shopping cart. Cart state shall survive page reload for at least 30 minutes. | Customer, Cashier | Cart |
-| `COS-FR003` | **Item Customisation** | The system shall allow selection of modifiers (size, extras, removals, cooking preference) with prices adjusted dynamically. Invalid combinations shall be blocked. | Customer, Cashier, Admin | Cart |
-| `COS-FR004` | **Order Type Selection** | The customer shall select **Dine-In** (with table number), **Takeaway** (with pick-up time), or **Delivery** (with address & delivery fee) before checkout. | Customer, Cashier | Order Fulfilment |
-| `COS-FR005` | **Discount & Promo Code Application** | The system shall accept promotion codes, validate expiry and eligibility, and adjust the order total accordingly. Only one code per order unless configured otherwise. | Customer, Cashier, Admin | Pricing |
-| `COS-FR006` | **Payment Processing** | The system shall integrate with the Payment Gateway to process card, digital wallet, and cash payments. Payment status (success, failure, pending) shall be reflected to the customer within 5 seconds. | Customer, Cashier, Payment GW | Checkout |
-| `COS-FR007` | **Order Confirmation & Receipt** | On successful payment, the system shall generate a unique order ID, display an on-screen confirmation, and trigger the Notification Service to dispatch an SMS/email receipt. | Customer, Notification Service | Checkout |
-| `COS-FR008` | **Order Transmission to KDS** | After payment confirmation, the system shall publish the order (items, modifiers, priority, order type) to the Kitchen Display System within **2 seconds** via a reliable message queue. | KDS | Order Fulfilment |
-| `COS-FR009` | **Live Order Status Tracking** | The customer shall view a live status page (Received → Preparing → Ready → Collected). Status updates shall be pushed via **WebSocket** with no manual refresh required. | Customer, KDS | Real-time |
-| `COS-FR010` | **Staff Order Override** | Cashier accounts shall be able to create, modify, or cancel any order on behalf of a customer with a mandatory reason code logged for every modification. | Cashier, Admin | Audit |
-| `COS-FR011` | **Menu & Inventory Management** | System Admin shall create, update, deactivate, and delete menu items, categories, and modifier groups. Changes shall propagate to the customer-facing menu within **30 seconds**. | Admin | Menu Management |
-| `COS-FR012` | **Refund Processing** | Authorised staff shall initiate full or partial refunds for completed orders. The system shall call the Payment Gateway refund endpoint and log the transaction with the initiating staff ID. | Cashier, Payment GW | Audit |
+| `COS-FR003` | **Order Type Selection** | The customer shall select **Dine-In** (with table number), **Takeaway** (with pick-up time) | Customer, Cashier | Order Fulfilment |
+| `COS-FR004` | **Discount & Promo Code Application** | The system shall accept promotion codes, validate expiry and eligibility, and adjust the order total accordingly. Only one code per order unless configured otherwise. | Customer, Cashier, Admin | Pricing |
+| `COS-FR005` | **Payment Processing** |The system shall simulate payment by allowing the customer to choose Cash or Mock Card payment and return success or failure.| Customer, Cashier, Payment Simulator | Checkout |
+| `COS-FR006` | **Order Confirmation & Receipt** | On successful payment, the system shall generate a unique order ID, display an on-screen confirmation | Customer, Data Storage | Checkout |
+| `COS-FR007` | **Live Order Status Tracking** | The customer shall view a simple order status page showing Pending, Confirmed, or Cancelled. | Customer, Data Storage | Real-time |
+| `COS-FR008` | **Menu & Inventory Management** | System Admin shall add, update, and mark menu items as unavailable. | Admin | Menu Management |
+
 
 ---
 
@@ -81,9 +76,9 @@ Each maps to at least one actor and one feature area — ensuring **zero orphane
 | ID | Requirement | Description | Actors | Feature Area |
 |----|-------------|-------------|--------|--------------|
 | `COS-NFR001` | **Performance** | Menu page initial load shall complete in ≤ 2 seconds on a 4G connection. Checkout submission shall return a response within 3 seconds under 200 concurrent users. | All actors | Performance |
-| `COS-NFR002` | **Security & PCI-DSS** | No raw card data shall be stored or logged by the COS. All payment data shall be tokenised by the Payment Gateway. All communication shall use TLS 1.2+. | Customer, Payment GW | Compliance |
-| `COS-NFR003` | **Availability** | The system shall achieve 99.5% uptime during operating hours. Degraded mode shall allow order browsing even if the payment gateway is temporarily unavailable. | All actors | Reliability |
-| `COS-NFR004` | **Accessibility** | The customer-facing UI shall conform to WCAG 2.1 AA. All interactive elements shall be keyboard-navigable and screen-reader compatible. | Customer | Compliance |
+| `COS-NFR002` | **Security** | The backend shall validate prices, item IDs, and quantities server-side and shall not trust client-submitted totals. | Customer, Payment GW | Compliance |
+| `COS-NFR003` | **Availability** | The system shall handle invalid inputs without crashing and shall display clear error messages.| All actors | Reliability |
+| `COS-NFR004` | **Accessibility** | The customer shall complete checkout in no more than 5 steps.| Customer | Compliance |
 
 ---
 
@@ -95,26 +90,22 @@ Every requirement is mapped to at least one actor and one feature area.
 - **M** = Medium (participant / indirect)
 - _(blank)_ = No direct relationship
 
-| Req ID | Customer | Cashier | Admin | Pay. GW | Notif. | KDS | Feature Area |
-|--------|:--------:|:-------:|:-----:|:-------:|:------:|:---:|--------------|
-| `COS-FR001` | H | | M | | | | Browsing |
-| `COS-FR002` | H | M | | | | | Cart |
-| `COS-FR003` | H | M | M | | | | Cart |
-| `COS-FR004` | H | M | | | | M | Order Fulfilment |
-| `COS-FR005` | H | H | M | | | | Pricing |
-| `COS-FR006` | H | M | | H | | | Checkout |
-| `COS-FR007` | H | | | M | H | | Checkout |
-| `COS-FR008` | | | | | | H | Order Fulfilment |
-| `COS-FR009` | H | | | | | M | Real-time |
-| `COS-FR010` | M | H | M | M | | | Audit |
-| `COS-FR011` | M | | H | | | M | Menu Management |
-| `COS-FR012` | M | H | | H | M | | Audit |
-| `COS-NFR001` | H | M | | M | | M | Performance |
-| `COS-NFR002` | H | M | M | H | | | Security |
-| `COS-NFR003` | H | H | M | M | M | M | Reliability |
-| `COS-NFR004` | H | | M | | | | Accessibility |
+| Req ID | Customer | Cashier | Admin | Data Storage | Payment Simulator | Feature Area |
+|--------|:--------:|:-------:|:-----:|:------------:|:-----------------:|--------------|
+| `COS-FR001` | H | | M | M | | Browsing |
+| `COS-FR002` | H | M | | H | | Cart |
+| `COS-FR003` | H | M | | | | Order Fulfilment |
+| `COS-FR004` | H | M | M | | | Pricing |
+| `COS-FR005` | H | M | | | H | Checkout |
+| `COS-FR006` | H | | | H | M | Checkout |
+| `COS-FR007` | H | | | H | | Order Status |
+| `COS-FR008` | | | H | H | | Menu Management |
+| `COS-NFR001` | H | M | | M | | Performance |
+| `COS-NFR002` | H | M | M | H | | Security |
+| `COS-NFR003` | H | H | M | M | M | Reliability |
+| `COS-NFR004` | H | | M | | | Usability |
 
-> ✅ **Zero orphaned requirements** — every actor appears in ≥ 1 requirement. Every requirement traces to ≥ 1 actor and ≥ 1 feature area.
+> ✅ Zero orphaned requirements — every requirement maps to at least one actor and one feature area.
 
 ---
 
@@ -175,7 +166,7 @@ Cart contents shall be persisted to a server-side session keyed to the customer'
 
 ---
 
-### EC-04 — Promo Code Brute-Force Enumeration
+### EC-04 Invalid Promo Code Attempts
 
 > 🟡 **Severity: High**
 
@@ -207,32 +198,18 @@ At checkout submission, the system shall perform a real-time stock validation fo
 
 ---
 
-### EC-06 — Order Confirmed but KDS Never Receives It
-
-> 🔵 **Severity: Medium**
-
-**Persona (Frustrated Customer):**
-> *"Payment went through fine but the kitchen never got my order. Staff had no idea what I'd ordered."*
-
-**Root Cause:** KDS transmission was fire-and-forget with no delivery guarantee or alerting mechanism.
-
-**Hidden Requirement `COS-FR018` — Guaranteed KDS Delivery with Fallback:**
-The system shall use a **persistent message queue** (at-least-once delivery) for KDS transmission. If a KDS acknowledgement is not received within 10 seconds, the system shall retry up to 3 times with exponential back-off, then alert on-duty staff via the management dashboard with the full order details for manual entry. All retry attempts shall be logged.
-
-**Tags:** `KDS` · `Order Fulfilment` · `Reliability`
-
 ---
 
 ## 6. Phase 1 Summary
 
 | Metric | Result |
 |--------|--------|
-| Actors classified | 6 (1 Primary · 2 Supporting · 3 Offstage) |
-| Functional requirements | 12 (COS-FR001 – COS-FR012) |
+| Actors classified | 5 (1 Primary · 2 Supporting · 2 Offstage) |
+| Functional requirements | 8 (COS-FR001 – COS-FR008) |
 | Non-functional requirements | 4 (COS-NFR001 – COS-NFR004) |
-| Hidden requirements discovered | 6 (COS-FR013 – COS-FR018) |
+| Hidden requirements discovered | 5 (COS-FR013 – COS-FR017) |
 | Orphaned requirements | **0** |
-| Edge cases uncovered | **6** (requirement: ≥ 5 ✅) |
+| Edge cases uncovered | **5** (requirement: ≥ 5 ✅) |
 | AI Personas used | 2 (Frustrated Customer · Malicious Actor) |
 
 ---
