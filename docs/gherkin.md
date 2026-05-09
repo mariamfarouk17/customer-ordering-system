@@ -1,77 +1,124 @@
-Feature: Customer Ordering System
+Feature: Browse & Search Menu (COS-FR001)
 
-# COS-FR001 - Menu Browsing
-Scenario: View menu with categories and availability
-Given the customer opens the menu page
-When the system loads menu data
-Then items are displayed grouped by category
-And each item shows name, price, and availability status
+Scenario: View menu grouped by category
+  Given the customer opens the menu page
+  When the system loads successfully
+  Then menu items are displayed grouped by category
+  And each item shows name, price, and availability status
 
-# COS-FR002 - Cart Management
+Scenario: Search for menu item
+  Given the customer is on the menu page
+  When the customer searches for "Shawarma"
+  Then only matching items are displayed
+  And unavailable items are marked as "Unavailable"
+
+---
+
+Feature: Cart Management (COS-FR002)
+
 Scenario: Add item to cart
-Given the customer is viewing the menu
-When the customer selects an item with quantity between 1 and 10
-Then the item is added to the cart
-And the cart total is updated correctly
+  Given the customer selects an available menu item
+  When the customer clicks "Add to Cart"
+  Then the item is added with quantity 1
+  And the cart total is updated
 
 Scenario: Remove item from cart
-Given the cart contains at least one item
-When the customer removes an item
-Then the item is removed from the cart
-And the cart total is recalculated
+  Given the cart contains items
+  When the customer removes an item
+  Then the item is deleted from the cart
+  And the total is recalculated
 
-Scenario: Restore cart after page reload
-Given the customer has items in the cart
-When the page is refreshed
-Then the cart state is restored from session storage or server session
+Scenario: Update item quantity
+  Given the cart contains an item
+  When the customer changes quantity to 3
+  Then the cart reflects the new quantity
+  And total price is updated
 
-# COS-FR003 - Order Type Selection
-Scenario: Select order type
-Given the customer is ready to checkout
-When the customer selects order type as dine-in or takeaway
-Then the system records the selection
-And requires table number if dine-in is selected
+Scenario: Cart persistence after reload
+  Given the cart has items
+  When the page is refreshed
+  Then the cart state remains unchanged
 
-# COS-FR004 - Promo Code Validation
+---
+
+Feature: Order Type Selection (COS-FR003)
+
+Scenario: Select Dine-In order
+  Given the customer is on checkout page
+  When the customer selects "Dine-In" and enters table number
+  Then the system saves order type as Dine-In
+
+Scenario: Select Takeaway order
+  Given the customer is on checkout page
+  When the customer selects "Takeaway" and enters pickup time
+  Then the system saves order type as Takeaway
+
+Scenario: Missing order type
+  Given the customer is on checkout page
+  When the customer tries to confirm without selecting order type
+  Then an error message is displayed
+  And order is not submitted
+
+---
+
+Feature: Promo Code (COS-FR004)
+
 Scenario: Apply valid promo code
-Given the customer enters a promo code
-When the code is validated
-Then the discount is applied to the order total
+  Given the cart total is calculated
+  When the customer applies a valid promo code
+  Then discount is applied correctly
 
-Scenario: Reject invalid promo code
-Given the customer enters an invalid or expired promo code
-When validation is performed
-Then the system rejects the code
-And shows an error message
+Scenario: Apply invalid promo code
+  Given the customer enters a wrong code
+  When validation runs
+  Then system shows error message
+  And total remains unchanged
 
-# COS-FR005 - Payment Processing
-Scenario: Successful payment
-Given the customer selects a payment method
-When payment is processed successfully
-Then the order status becomes confirmed
-And payment is recorded
+---
+
+Feature: Payment Processing (COS-FR005)
+
+Scenario: Successful mock payment
+  Given the customer confirms checkout
+  When payment succeeds
+  Then order is confirmed
+  And payment status is saved
 
 Scenario: Failed payment
-Given the payment is initiated
-When the payment fails
-Then the order is not confirmed
-And the customer is notified
+  Given payment is initiated
+  When payment fails
+  Then no order is created
+  And error is shown
 
-# COS-FR006 - Order Confirmation
-Scenario: Generate order confirmation
-Given the payment is successful
-When the order is created
-Then the system generates a unique order ID
-And stores the order in the database
+---
 
-# COS-FR007 - Order Tracking
-Scenario: Track order status
-Given an order exists
-When the customer opens the tracking page
-Then the system displays current status (Pending, Confirmed, Cancelled)
+Feature: Order Confirmation (COS-FR006)
 
-# COS-NFR001 - Performance
-Scenario: System response time
-Given multiple users access the system
-When they perform checkout
-Then the response time is under 3 seconds
+Scenario: Generate order ID
+  Given payment is successful
+  When order is created
+  Then system generates unique order ID
+  And displays confirmation screen
+
+---
+
+Feature: Order Tracking (COS-FR007)
+
+Scenario: View order status
+  Given an order exists
+  When customer opens tracking page
+  Then system shows current status
+
+---
+
+Feature: Menu Management (COS-FR008)
+
+Scenario: Admin adds new item
+  Given admin opens menu panel
+  When admin adds new item details
+  Then item appears in customer menu
+
+Scenario: Admin updates item
+  Given item exists
+  When admin updates price or availability
+  Then changes are reflected in menu
