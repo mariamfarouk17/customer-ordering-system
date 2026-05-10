@@ -173,3 +173,160 @@ Example:
   "item_id": 9999,
   "quantity": 2
 }
+### Risk
+The backend may fail, return incorrect data, or create an order with invalid item information.
+
+### Expected Result
+The backend must validate the item ID and reject the request if the item does not exist.
+
+### Error Message
+`Invalid item ID.`
+
+### Hidden Requirement
+The backend shall validate all item IDs before processing cart or checkout requests.
+
+### Related Requirement
+Backend validation must not depend only on frontend validation.
+
+### Suggested Test
+Given item ID 9999 does not exist  
+When the backend receives a request to add this item  
+Then the backend should return a validation error.
+
+---
+
+## Edge Case 7: Double Checkout Click
+
+### Scenario
+The customer clicks the checkout button twice quickly.
+
+### Risk
+The system may create duplicate orders for the same cart.
+
+### Expected Result
+The system must create only one order and prevent duplicate checkout requests.
+
+### Error Message
+`Your order is already being processed.`
+
+### Hidden Requirement
+The system shall prevent duplicate order submission.
+
+### Related Requirement
+Ensure checkout is idempotent or protected from repeated clicks.
+
+### Suggested Test
+Given the customer has a valid cart  
+When the customer clicks checkout twice quickly  
+Then the system should create only one order.
+
+---
+
+## Edge Case 8: Page Refresh During Checkout
+
+### Scenario
+The customer refreshes the page while checkout is being processed.
+
+### Risk
+The cart may be lost, the order may be duplicated, or the order status may become unclear.
+
+### Expected Result
+The system should safely recover by showing either the existing cart or the latest order status.
+
+### Error Message
+`Checkout status recovered. Please review your order status.`
+
+### Hidden Requirement
+The system shall handle interrupted checkout safely.
+
+### Related Requirement
+Maintain consistency during checkout interruptions.
+
+### Suggested Test
+Given checkout is in progress  
+When the customer refreshes the page  
+Then the system should not create duplicate or corrupted orders.
+
+---
+
+## Edge Case 9: Cart Total Calculation Mismatch
+
+### Scenario
+The frontend displays a total price that does not match the backend-calculated total.
+
+### Risk
+The customer may see an incorrect price, or the system may accept manipulated frontend values.
+
+### Expected Result
+The backend must calculate the final total price itself and ignore any total price sent from the frontend.
+
+### Error Message
+`Cart total was recalculated by the system.`
+
+### Hidden Requirement
+The backend shall be the source of truth for price calculations.
+
+### Related Requirement
+Prevent price manipulation and ensure correct total calculation.
+
+### Suggested Test
+Given the frontend sends a manipulated total price  
+When checkout is submitted  
+Then the backend should recalculate the total using stored item prices.
+
+---
+
+## Edge Case 10: Empty or Missing Request Body
+
+### Scenario
+The backend receives an empty request body for adding to cart or checkout.
+
+Example:
+{
+  "item_id": null,
+  "quantity": null
+}
+
+### Risk
+The backend may crash or process incomplete data.
+
+### Expected Result
+The backend must reject the request and return a clear validation error.
+
+### Error Message
+`Missing required request data.`
+
+### Hidden Requirement
+The backend shall validate that all required request fields are present.
+
+### Related Requirement
+Validate request format before processing.
+
+### Suggested Test
+Given the request body is empty  
+When the backend receives the request  
+Then the backend should return a validation error.
+
+---
+
+# Summary of Hidden Requirements
+
+| ID | Hidden Requirement | Related Edge Case |
+|---|---|---|
+| HR1 | The system shall reject checkout when the cart is empty. | Edge Case 1 |
+| HR2 | The system shall reject quantity values less than 1. | Edge Case 2, Edge Case 3 |
+| HR3 | The system shall enforce a maximum quantity limit. | Edge Case 4 |
+| HR4 | The system shall prevent ordering unavailable items. | Edge Case 5 |
+| HR5 | The backend shall validate item IDs independently from the frontend. | Edge Case 6 |
+| HR6 | The system shall prevent duplicate checkout submissions. | Edge Case 7 |
+| HR7 | The system shall recover safely from checkout interruption. | Edge Case 8 |
+| HR8 | The backend shall be the source of truth for price calculation. | Edge Case 9 |
+| HR9 | The backend shall reject missing or incomplete request data. | Edge Case 10 |
+
+---
+
+# Conclusion
+
+These edge cases improve the reliability of the Customer Ordering System by covering invalid inputs, boundary values, repeated user actions, unavailable items, and backend validation failures.
+
+They also help convert hidden requirements into testable system behaviors, which supports the requirement discovery and validation process.
