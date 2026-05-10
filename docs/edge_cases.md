@@ -167,13 +167,12 @@ Then the system should reject the request and show an unavailable item message.
 ### Scenario
 The frontend or a malicious user sends an item ID that does not exist in the menu database.
 
-Example:
 ```json
 {
   "item_id": 9999,
   "quantity": 2
 }
-
+```
 ### Risk
 The backend may fail, return incorrect data, or create an order with invalid item information.
 
