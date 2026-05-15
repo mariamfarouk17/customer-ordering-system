@@ -1,4 +1,5 @@
-from flask import Flask, jsonify, render_template, redirect, url_for
+from flask import Flask, jsonify, render_template, redirect, url_for, request
+from services.cart_service import add_to_cart
 
 from models.database import init_db, seed_data
 from services.menu_service import get_all_items
@@ -28,6 +29,21 @@ def api_menu():
     # Return all menu items grouped by category as JSON
     data = get_all_items()
     return jsonify(data)
+
+@app.route("/api/cart/add", methods=["POST"])
+def api_cart_add():
+    data = request.get_json()
+
+    session_id = data.get("session_id")
+    item_id = data.get("item_id")
+    quantity = data.get("quantity")
+
+    result = add_to_cart(session_id, item_id, quantity)
+
+    if "error" in result:
+        return jsonify(result), 400
+
+    return jsonify(result), 200
 
 
 @app.route("/health")
