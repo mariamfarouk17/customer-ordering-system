@@ -161,4 +161,7 @@ def test_valid_promo_code_applies_discount():
     assert data["message"] == "Promo code applied"
     assert data["discount_percent"] == 10.0
     assert data["discount_amount"] == 1.3
+
+    assert data["new_total"] == 11.7
+
     assert data["new_total"] == 11.7
