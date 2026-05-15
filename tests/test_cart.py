@@ -41,3 +41,19 @@ def test_add_available_item_to_cart_updates_total():
         assert cart_item is not None
         assert cart_item["menu_item_id"] == 1
         assert cart_item["quantity"] == 2
+def test_add_item_rejects_zero_quantity():
+    init_db()
+    seed_data()
+
+    client = app.test_client()
+
+    response = client.post("/api/cart/add", json={
+        "session_id": "test_zero_quantity",
+        "item_id": 1,
+        "quantity": 0
+    })
+
+    data = response.get_json()
+
+    assert response.status_code == 400
+    assert data["error"] == "Quantity must be at least 1"
