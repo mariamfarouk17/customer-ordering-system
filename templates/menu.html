@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Menu — Customer Ordering System</title>
+
+  <style>
+    /* ── Design tokens ─────────────────────────────────────── */
+    :root {
+      --bg:         #f7f4ef;
+      --surface:    #ffffff;
+      --border:     #e8e2d9;
+      --accent:     #c8401a;
+      --accent-dk:  #a33315;
+      --text-main:  #1a1510;
+      --text-sub:   #6b6256;
+      --badge-ok:   #d4edda;
+      --badge-ok-t: #276237;
+      --badge-no:   #f0e8e8;
+      --badge-no-t: #8c2a2a;
+      --radius:     10px;
+      --shadow:     0 2px 12px rgba(0,0,0,.07);
+    }
+
+    /* ── Reset & base ──────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Georgia, "Times New Roman", serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+    }
+
+    /* ── Header ────────────────────────────────────────────── */
+    header {
+      background: var(--text-main);
+      color: #f7f4ef;
+      padding: 28px 32px 22px;
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+    }
+
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: normal;
+      letter-spacing: .02em;
+    }
+
+    header span {
+      font-size: .9rem;
+      opacity: .55;
+      font-style: italic;
+    }
+
+    /* ── Search bar ────────────────────────────────────────── */
+    .search-bar {
+      max-width: 560px;
+      margin: 32px auto 0;
+      padding: 0 20px;
+    }
+
+    .search-bar label {
+      display: block;
+      font-size: .78rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text-sub);
+      margin-bottom: 8px;
+    }
+
+    .search-bar input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      font-size: 1rem;
+      font-family: inherit;
+      color: var(--text-main);
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    .search-bar input:focus { border-color: var(--accent); }
+
+    /* ── Main content ──────────────────────────────────────── */
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 36px 20px 60px;
+    }
+
+    /* ── State messages ────────────────────────────────────── */
+    #status-message {
+      text-align: center;
+      padding: 48px 0;
+      color: var(--text-sub);
+      font-style: italic;
+      font-size: 1.05rem;
+    }
+
+    /* ── Category section ──────────────────────────────────── */
+    .category-section { margin-bottom: 44px; }
+
+    .category-title {
+      font-size: 1.1rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--text-sub);
+      border-bottom: 1.5px solid var(--border);
+      padding-bottom: 8px;
+      margin-bottom: 20px;
+    }
+
+    /* ── Item grid ─────────────────────────────────────────── */
+    .items-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 18px;
+    }
+
+    /* ── Item card ─────────────────────────────────────────── */
+    .item-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 18px 16px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: transform .18s, box-shadow .18s;
+    }
+
+    .item-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,.1);
+    }
+
+    /* Dim the whole card when unavailable */
+    .item-card.unavailable { opacity: .65; }
+
+    .item-name {
+      font-size: 1.05rem;
+      font-weight: bold;
+      line-height: 1.3;
+    }
+
+    .item-price {
+      font-size: 1rem;
+      color: var(--accent);
+    }
+
+    /* ── Availability badge ────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      font-size: .72rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      font-family: Arial, sans-serif;
+      padding: 3px 10px;
+      border-radius: 20px;
+      align-self: flex-start;
+    }
+
+    .badge.available   { background: var(--badge-ok); color: var(--badge-ok-t); }
+    .badge.unavailable { background: var(--badge-no); color: var(--badge-no-t); }
+
+    /* ── Add to Cart button ────────────────────────────────── */
+    .btn-cart {
+      margin-top: auto;
+      padding: 10px 0;
+      border: none;
+      border-radius: var(--radius);
+      background: var(--accent);
+      color: #fff;
+      font-size: .9rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background .18s;
+    }
+
+    .btn-cart:hover:not(:disabled) { background: var(--accent-dk); }
+
+    .btn-cart:disabled {
+      background: var(--border);
+      color: var(--text-sub);
+      cursor: not-allowed;
+    }
+
+    /* ── No-results message ────────────────────────────────── */
+    .no-results {
+      text-align: center;
+      color: var(--text-sub);
+      font-style: italic;
+      padding: 28px 0;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── Header ──────────────────────────────────────────── -->
+  <header>
+    <h1>Our Menu</h1>
+    <span>Customer Ordering System</span>
+  </header>
+
+  <!-- ── Search ──────────────────────────────────────────── -->
+  <div class="search-bar">
+    <label for="search-input">Search items</label>
+    <input
+      type="text"
+      id="search-input"
+      placeholder="e.g. Shawarma, Cola…"
+      aria-label="Search menu items"
+    />
+  </div>
+
+  <!-- ── Menu content ────────────────────────────────────── -->
+  <main id="menu-container">
+    <!-- JavaScript fills this in after fetching /api/menu -->
+    <p id="status-message">Loading menu…</p>
+  </main>
+
+  <script>
+    // ── State ──────────────────────────────────────────────
+    // Keep a reference to all fetched categories so we can
+    // re-filter them whenever the user types in the search box.
+    let allCategories = [];
+
+    // ── Fetch menu data from the Flask API ─────────────────
+    async function fetchMenu() {
+      try {
+        const response = await fetch("/api/menu");
+
+        if (!response.ok) {
+          throw new Error("Server returned status " + response.status);
+        }
+
+        const data = await response.json();
+        allCategories = data.categories;   // save for filtering
+        renderMenu(allCategories);
+
+      } catch (error) {
+        // Show an error if the fetch failed
+        document.getElementById("status-message").textContent =
+          "Failed to load menu. Please refresh the page.";
+        console.error("Menu fetch error:", error);
+      }
+    }
+
+    // ── Build and display the menu ─────────────────────────
+    function renderMenu(categories) {
+      const container = document.getElementById("menu-container");
+      container.innerHTML = "";   // clear previous content
+
+      // Filter out empty categories (items all hidden by search)
+      const visibleCategories = categories.filter(cat => cat.items.length > 0);
+
+      if (visibleCategories.length === 0) {
+        container.innerHTML = '<p class="no-results">No items match your search.</p>';
+        return;
+      }
+
+      // Build one section per category
+      visibleCategories.forEach(category => {
+        const section = document.createElement("section");
+        section.className = "category-section";
+
+        // Category heading
+        const heading = document.createElement("h2");
+        heading.className = "category-title";
+        heading.textContent = category.name;
+        section.appendChild(heading);
+
+        // Grid of item cards
+        const grid = document.createElement("div");
+        grid.className = "items-grid";
+
+        category.items.forEach(item => {
+          grid.appendChild(buildCard(item));
+        });
+
+        section.appendChild(grid);
+        container.appendChild(section);
+      });
+    }
+
+    // ── Build a single item card element ───────────────────
+    function buildCard(item) {
+      const card = document.createElement("div");
+      card.className = "item-card" + (item.is_available ? "" : " unavailable");
+
+      // Item name
+      const name = document.createElement("p");
+      name.className = "item-name";
+      name.textContent = item.name;
+
+      // Price — always show two decimal places
+      const price = document.createElement("p");
+      price.className = "item-price";
+      price.textContent = "$" + item.price.toFixed(2);
+
+      // Availability badge
+      const badge = document.createElement("span");
+      badge.className = "badge " + (item.is_available ? "available" : "unavailable");
+      badge.textContent   = item.is_available ? "Available" : "Unavailable";
+
+      // Add to Cart button
+      const button = document.createElement("button");
+      button.className   = "btn-cart";
+      button.textContent = item.is_available ? "Add to Cart" : "Unavailable";
+      button.disabled    = !item.is_available;
+
+      // Placeholder action — will be replaced when the cart slice is built
+      button.addEventListener("click", function () {
+        alert("Added to cart: " + item.name);
+      });
+
+      card.appendChild(name);
+      card.appendChild(price);
+      card.appendChild(badge);
+      card.appendChild(button);
+
+      return card;
+    }
+
+    // ── Real-time search filtering ─────────────────────────
+    document.getElementById("search-input").addEventListener("input", function () {
+      const query = this.value.trim().toLowerCase();
+
+      // If the search box is empty, show everything
+      if (query === "") {
+        renderMenu(allCategories);
+        return;
+      }
+
+      // Keep only items whose name includes the search query
+      const filtered = allCategories.map(category => ({
+        name:  category.name,
+        items: category.items.filter(item =>
+          item.name.toLowerCase().includes(query)
+        )
+      }));
+
+      renderMenu(filtered);
+    });
+
+    // ── Start ──────────────────────────────────────────────
+    fetchMenu();
+  </script>
+
+</body>
+</html>
