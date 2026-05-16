@@ -4,13 +4,15 @@ from models.database import init_db, seed_data
 from services.menu_service import get_all_items
 from services.cart_service import add_to_cart, remove_from_cart
 from services.promo_service import apply_promo_code
-from services.ordere_service import create_order, get_order_by_code
+from services.order_service import create_order, get_order_by_code
 
 
 app = Flask(__name__)
 
 
-# --- Page Routes ---
+# -----------------------------
+# Page Routes
+# -----------------------------
 
 @app.route("/")
 def index():
@@ -29,10 +31,15 @@ def checkout_page():
 
 @app.route("/confirmation/<order_code>")
 def confirmation_page(order_code):
-    return render_template("confirmation.html", order_code=order_code)
+    return render_template(
+        "confirmation.html",
+        order_code=order_code
+    )
 
 
-# --- API Routes ---
+# -----------------------------
+# API Routes
+# -----------------------------
 
 @app.route("/api/menu")
 def api_menu():
@@ -100,7 +107,10 @@ def api_checkout():
 
     if "error" in result:
         status_code = result.get("status_code", 400)
+
+        # Remove status_code before sending response
         result.pop("status_code", None)
+
         return jsonify(result), status_code
 
     return jsonify(result), 201
@@ -120,6 +130,10 @@ def api_get_order(order_code):
 def health():
     return jsonify({"status": "ok"}), 200
 
+
+# -----------------------------
+# App Start
+# -----------------------------
 
 if __name__ == "__main__":
     init_db()
