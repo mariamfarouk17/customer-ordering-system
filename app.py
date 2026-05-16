@@ -1,15 +1,19 @@
 from flask import Flask, jsonify, render_template, redirect, url_for, request
+from flask_migrate import Migrate
 
+from models import db, Order, OrderItem
 from models.database import init_db, seed_data
 from services.menu_service import get_all_items
 from services.cart_service import add_to_cart, remove_from_cart
 from services.promo_service import apply_promo_code
-from flask import Flask, request, jsonify
-from models import db, Order, OrderItem
-from models.order import db
-from models.order import Order, OrderItem
 
 app = Flask(__name__)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db.init_app(app)
+migrate = Migrate(app, db)
 
 
 # --- Page Routes ---
@@ -83,12 +87,6 @@ def health():
     return jsonify({"status": "ok"})
 
 
-if __name__ == "__main__":
-    init_db()
-    seed_data()
-    print("Starting Customer Ordering System...")
-    app.run(debug=True)
-
 @app.route('/api/checkout', methods=['POST'])
 def checkout():
     data = request.get_json()
@@ -107,12 +105,30 @@ def checkout():
     # Create order
     order = Order()
     db.session.add(order)
-    db.session.flush()  # Get the order ID before committing
+    db.session.flush()
 
     for item in items:
-        order_item = OrderItem(order_id=order.id, item_id=item['id'], quantity=item['quantity'])
+        order_item = OrderItem(
+            order_id=order.id,
+            item_id=item['id'],
+            quantity=item['quantity']
+        )
         db.session.add(order_item)
 
     db.session.commit()
 
-    return jsonify({"message": "Order created", "order_id": order.id}), 201   
+    return jsonify({
+        "message": "Order created",
+        "order_id": order.id
+    }), 201
+
+
+if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
+
+    init_db()
+    seed_data()
+
+    print("Starting Customer Ordering System...")
+    app.run(debug=True)
