@@ -1,0 +1,43 @@
+{
+  "categories": [
+    {
+      "items": [
+        {
+          "id": 3,
+          "is_available": true,
+          "name": "Cola",
+          "price": 1.5
+        }
+      ],
+      "name": "Drinks"
+    },
+    {
+      "items": [
+        {
+          "id": 4,
+          "is_available": false,
+          "name": "Fries",
+          "price": 2.0
+        }
+      ],
+      "name": "Sides"
+    },
+    {
+      "items": [
+        {
+          "id": 1,
+          "is_available": true,
+          "name": "Chicken Shawarma",
+          "price": 6.5
+        },
+        {
+          "id": 2,
+          "is_available": true,
+          "name": "Falafel Wrap",
+          "price": 5.5
+        }
+      ],
+      "name": "Wraps"
+    }
+  ]
+}
