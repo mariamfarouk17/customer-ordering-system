@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkout — Customer Ordering System</title>
+
+  <style>
+    /* ── Design Tokens (identical to menu.html) ── */
+    :root {
+      --bg:         #f7f4ef;
+      --surface:    #ffffff;
+      --border:     #e8e2d9;
+      --accent:     #c8401a;
+      --accent-dk:  #a33315;
+      --text-main:  #1a1510;
+      --text-sub:   #6b6256;
+      --badge-ok:   #d4edda;
+      --badge-ok-t: #276237;
+      --badge-no:   #f0e8e8;
+      --badge-no-t: #8c2a2a;
+      --radius:     10px;
+      --shadow:     0 2px 12px rgba(0,0,0,.07);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Georgia, "Times New Roman", serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+    }
+
+    /* ── Header (same as menu.html) ── */
+    header {
+      background: var(--text-main);
+      color: #f7f4ef;
+      padding: 28px 32px 22px;
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+    }
+    header h1 { font-size: 1.75rem; font-weight: normal; letter-spacing: .02em; }
+    header span { font-size: .9rem; opacity: .55; font-style: italic; }
+
+    /* ── Back to menu link ── */
+    .back-link {
+      max-width: 1160px;
+      margin: 22px auto 0;
+      padding: 0 20px;
+    }
+    .back-link a {
+      font-size: .88rem;
+      font-style: italic;
+      color: var(--text-sub);
+      text-decoration: none;
+      transition: color .18s;
+    }
+    .back-link a:hover { color: var(--accent); }
+
+    /* ── Notification bar (same pattern as menu.html #cart-message) ── */
+    #checkout-message {
+      max-width: 1160px;
+      margin: 14px auto 0;
+      padding: 11px 16px;
+      border-radius: var(--radius);
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--text-main);
+      text-align: center;
+      display: none;
+      font-size: .93rem;
+    }
+    #checkout-message.success {
+      display: block;
+      border-color: #b9d8c0;
+      background: #edf7ef;
+      color: #276237;
+    }
+    #checkout-message.error {
+      display: block;
+      border-color: #e0b8b8;
+      background: #f8eeee;
+      color: #8c2a2a;
+    }
+
+    /* ── Page layout (mirrors menu.html .page-body) ── */
+    .page-body {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 32px 20px 60px;
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 28px;
+      align-items: start;
+    }
+    @media (max-width: 800px) {
+      .page-body { grid-template-columns: 1fr; }
+      .summary-panel { order: -1; }
+    }
+
+    /* ── Form card ── */
+    .form-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 28px 26px 32px;
+    }
+    .form-card h2 {
+      font-size: .95rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text-sub);
+      border-bottom: 1.5px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 24px;
+      font-weight: normal;
+    }
+
+    /* ── Individual field wrapper ── */
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin-bottom: 18px;
+    }
+
+    /* ── Field label (matches menu.html search label style) ── */
+    .field label {
+      font-size: .78rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text-sub);
+    }
+
+    /* ── Text and time inputs (matches menu.html search input) ── */
+    .field input[type="text"],
+    .field input[type="time"] {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      font-size: 1rem;
+      font-family: inherit;
+      color: var(--text-main);
+      outline: none;
+      transition: border-color .2s;
+    }
+    .field input[type="text"]:focus,
+    .field input[type="time"]:focus { border-color: var(--accent); }
+
+    /* ── Select dropdowns ── */
+    .select-wrapper { position: relative; }
+    .select-wrapper select {
+      width: 100%;
+      padding: 12px 40px 12px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      font-size: 1rem;
+      font-family: inherit;
+      color: var(--text-main);
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+      transition: border-color .2s;
+    }
+    .select-wrapper select:focus { border-color: var(--accent); }
+    /* Custom dropdown arrow */
+    .select-wrapper::after {
+      content: "▾";
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-sub);
+      pointer-events: none;
+      font-size: .85rem;
+    }
+
+    /* ── Divider between form sections ── */
+    .form-divider {
+      border: none;
+      border-top: 1.5px solid var(--border);
+      margin: 20px 0;
+    }
+
+    /*
+      ── Conditional fields ──
+      Hidden by default.
+      JS adds class "visible" to show the right one.
+    */
+    .conditional-field {
+      display: none;
+      flex-direction: column;
+      gap: 7px;
+      margin-bottom: 18px;
+    }
+    .conditional-field.visible { display: flex; }
+
+    /* ── Place Order button (matches menu.html .btn-cart) ── */
+    .btn-place-order {
+      margin-top: 26px;
+      width: 100%;
+      padding: 13px 0;
+      border: none;
+      border-radius: var(--radius);
+      background: var(--accent);
+      color: #fff;
+      font-size: 1rem;
+      font-family: inherit;
+      letter-spacing: .03em;
+      cursor: pointer;
+      transition: background .18s;
+    }
+    .btn-place-order:hover:not(:disabled) { background: var(--accent-dk); }
+    .btn-place-order:disabled {
+      background: var(--border);
+      color: var(--text-sub);
+      cursor: not-allowed;
+    }
+
+    /* ── Order summary sidebar (matches menu.html .cart-panel) ── */
+    .summary-panel {
+      position: sticky;
+      top: 20px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px 18px;
+    }
+    .summary-panel h2 {
+      font-size: .95rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text-sub);
+      border-bottom: 1.5px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+      font-weight: normal;
+    }
+
+    /* ── Summary rows ── */
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: .88rem;
+      padding: 5px 0;
+      color: var(--text-sub);
+    }
+    .summary-row span:last-child {
+      color: var(--text-main);
+      font-weight: bold;
+    }
+
+    /* ── Summary divider ── */
+    .summary-divider {
+      border: none;
+      border-top: 1.5px solid var(--border);
+      margin: 12px 0 10px;
+    }
+
+    /* ── Total row (matches .cart-total-row) ── */
+    .summary-total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: .97rem;
+      font-weight: bold;
+    }
+    .summary-total-row span:last-child { color: var(--accent); }
+
+    /* ── Small note below the summary ── */
+    .summary-note {
+      margin-top: 14px;
+      font-size: .78rem;
+      font-style: italic;
+      color: var(--text-sub);
+      line-height: 1.55;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header (identical to menu.html) ── -->
+  <header>
+    <h1>Checkout</h1>
+    <span>Customer Ordering System</span>
+  </header>
+
+  <!-- ── Back link ── -->
+  <div class="back-link">
+    <a href="/menu">← Back to Menu</a>
+  </div>
+
+  <!-- ── Notification bar: revealed by JS on success or error ── -->
+  <div id="checkout-message"></div>
+
+  <!-- ── Two-column layout: form on the left, summary on the right ── -->
+  <div class="page-body">
+
+    <!-- ── Left column: Checkout Form ── -->
+    <div class="form-card">
+      <h2>Order Details</h2>
+
+      <!-- Hidden session_id — set by JS, never typed by the user -->
+      <input type="hidden" id="session-id" value="browser_session" />
+
+      <!-- Order Type -->
+      <div class="field">
+        <label for="order-type">Order Type</label>
+        <div class="select-wrapper">
+          <select id="order-type">
+            <option value="">— Select an option —</option>
+            <option value="Dine-In">Dine-In</option>
+            <option value="Takeaway">Takeaway</option>
+          </select>
+        </div>
+      </div>
+
+      <!--
+        Table Number — visible only when Dine-In is chosen.
+        JS toggles class "visible" on this element.
+      -->
+      <div class="conditional-field" id="field-table-number">
+        <label for="table-number">Table Number</label>
+        <input type="text" id="table-number" placeholder="e.g. 5" />
+      </div>
+
+      <!--
+        Pickup Time — visible only when Takeaway is chosen.
+        JS toggles class "visible" on this element.
+      -->
+      <div class="conditional-field" id="field-pickup-time">
+        <label for="pickup-time">Pickup Time</label>
+        <input type="time" id="pickup-time" />
+      </div>
+
+      <hr class="form-divider" />
+
+      <!-- Payment Method -->
+      <div class="field">
+        <label for="payment-method">Payment Method</label>
+        <div class="select-wrapper">
+          <select id="payment-method">
+            <option value="">— Select payment method —</option>
+            <option value="Cash">Cash</option>
+            <option value="Mock Card">Mock Card</option>
+            <option value="Mock Card Fail">Mock Card Fail (Test)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Submit button -->
+      <button class="btn-place-order" id="place-order-btn">
+        Place Order
+      </button>
+    </div>
+
+
+    <!-- ── Right column: Order Summary sidebar ── -->
+    <aside class="summary-panel">
+      <h2>Order Summary</h2>
+
+      <div class="summary-row">
+        <span>Subtotal</span>
+        <span id="summary-subtotal">—</span>
+      </div>
+
+      <div class="summary-row">
+        <span>Discount</span>
+        <span id="summary-discount">—</span>
+      </div>
+
+      <hr class="summary-divider" />
+
+      <div class="summary-total-row">
+        <span>Total</span>
+        <span id="summary-total">—</span>
+      </div>
+
+      <p class="summary-note">
+        Totals are confirmed after placing your order.
+        Promo codes can be applied from the menu page.
+      </p>
+    </aside>
+
+  </div><!-- end .page-body -->
+
+
+  <script>
+
+    /* ── Show / hide conditional fields when order type changes ── */
+    document.getElementById("order-type").addEventListener("change", function () {
+      const orderType   = this.value;
+      const tableField  = document.getElementById("field-table-number");
+      const pickupField = document.getElementById("field-pickup-time");
+
+      // Hide both first, then show only the relevant one
+      tableField.classList.remove("visible");
+      pickupField.classList.remove("visible");
+
+      if (orderType === "Dine-In")  tableField.classList.add("visible");
+      if (orderType === "Takeaway") pickupField.classList.add("visible");
+    });
+
+
+    /* ── Show a success or error notification ── */
+    function showMessage(message, type) {
+      const box = document.getElementById("checkout-message");
+      box.textContent = message;
+      box.className = type; // triggers .success or .error CSS
+      box.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+
+    /* ── Populate the summary sidebar after a successful order ── */
+    function updateSummary(subtotal, discountAmount, total) {
+      document.getElementById("summary-subtotal").textContent = "$" + subtotal.toFixed(2);
+      document.getElementById("summary-discount").textContent = "$" + discountAmount.toFixed(2);
+      document.getElementById("summary-total").textContent    = "$" + total.toFixed(2);
+    }
+
+
+    /* ── Place Order button: validate → POST /api/checkout → redirect or error ── */
+    document.getElementById("place-order-btn").addEventListener("click", async function () {
+      const btn = this;
+
+      // Read all form values
+      const sessionId     = document.getElementById("session-id").value;
+      const orderType     = document.getElementById("order-type").value;
+      const tableNumber   = document.getElementById("table-number").value.trim();
+      const pickupTime    = document.getElementById("pickup-time").value.trim();
+      const paymentMethod = document.getElementById("payment-method").value;
+
+      // ── Client-side validation ──
+      if (!orderType) {
+        showMessage("Please select an order type.", "error");
+        return;
+      }
+      if (orderType === "Dine-In" && !tableNumber) {
+        showMessage("Please enter a table number for Dine-In orders.", "error");
+        return;
+      }
+      if (orderType === "Takeaway" && !pickupTime) {
+        showMessage("Please enter a pickup time for Takeaway orders.", "error");
+        return;
+      }
+      if (!paymentMethod) {
+        showMessage("Please select a payment method.", "error");
+        return;
+      }
+
+      // ── Build request body ──
+      const requestBody = {
+        session_id:     sessionId,
+        order_type:     orderType,
+        payment_method: paymentMethod
+      };
+
+      // Only send the field that belongs to the chosen order type
+      if (orderType === "Dine-In")  requestBody.table_number = tableNumber;
+      if (orderType === "Takeaway") requestBody.pickup_time  = pickupTime;
+
+      // ── Loading state while the request is in flight ──
+      btn.disabled    = true;
+      btn.textContent = "Placing Order…";
+
+      try {
+        const res = await fetch("/api/checkout", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify(requestBody)
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          // Fill in the summary sidebar with real totals from the server
+          updateSummary(
+            data.subtotal        || 0,
+            data.discount_amount || 0,
+            data.total           || 0
+          );
+
+          showMessage(data.message + " — Redirecting…", "success");
+
+          // Brief pause so the user sees the success notice, then redirect
+          setTimeout(function () {
+            window.location.href = "/confirmation/" + data.order_code;
+          }, 1200);
+
+        } else {
+          // Server returned a validation or payment error
+          showMessage(data.error || "Something went wrong. Please try again.", "error");
+          btn.disabled    = false;
+          btn.textContent = "Place Order";
+        }
+
+      } catch (err) {
+        // Network or unexpected error
+        showMessage("Could not reach the server. Please check your connection.", "error");
+        console.error("Checkout error:", err);
+        btn.disabled    = false;
+        btn.textContent = "Place Order";
+      }
+    });
+
+  </script>
+
+</body>
+</html>
