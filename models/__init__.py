@@ -1,5 +1,1 @@
-from flask_sqlalchemy import SQLAlchemy
 
-db = SQLAlchemy()
-
-from models.orders import Order, OrderItem
