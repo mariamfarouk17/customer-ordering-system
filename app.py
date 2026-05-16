@@ -6,6 +6,8 @@ from services.cart_service import add_to_cart, remove_from_cart
 from services.promo_service import apply_promo_code
 from flask import Flask, request, jsonify
 from models import db, Order, OrderItem
+from models.order import db
+from models.order import Order, OrderItem
 
 app = Flask(__name__)
 
