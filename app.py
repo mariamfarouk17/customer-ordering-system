@@ -4,6 +4,8 @@ from models.database import init_db, seed_data
 from services.menu_service import get_all_items
 from services.cart_service import add_to_cart, remove_from_cart
 from services.promo_service import apply_promo_code
+from flask import Flask, request, jsonify
+from models import db, Order, OrderItem
 
 app = Flask(__name__)
 
@@ -84,3 +86,31 @@ if __name__ == "__main__":
     seed_data()
     print("Starting Customer Ordering System...")
     app.run(debug=True)
+
+@app.route('/api/checkout', methods=['POST'])
+def checkout():
+    data = request.get_json()
+
+    # Validate cart data
+    if not data or 'items' not in data or 'payment_info' not in data:
+        return jsonify({"error": "Invalid request"}), 400
+
+    items = data['items']
+    payment_info = data['payment_info']
+
+    # Simulate payment processing
+    if payment_info['card_number'] == "0000000000000000":
+        return jsonify({"error": "Payment failed"}), 400
+
+    # Create order
+    order = Order()
+    db.session.add(order)
+    db.session.flush()  # Get the order ID before committing
+
+    for item in items:
+        order_item = OrderItem(order_id=order.id, item_id=item['id'], quantity=item['quantity'])
+        db.session.add(order_item)
+
+    db.session.commit()
+
+    return jsonify({"message": "Order created", "order_id": order.id}), 201   
