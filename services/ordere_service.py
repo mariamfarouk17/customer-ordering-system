@@ -4,7 +4,7 @@ from models.database import init_db, seed_data
 from services.menu_service import get_all_items
 from services.cart_service import add_to_cart, remove_from_cart
 from services.promo_service import apply_promo_code
-from services.order_service import create_order, get_order_by_code
+
 
 
 app = Flask(__name__)
