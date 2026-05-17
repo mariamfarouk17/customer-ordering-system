@@ -305,7 +305,28 @@
       font-size: .8rem; font-family: inherit; cursor: pointer;
       transition: border-color .18s, color .18s;
     }
-    .clear-cart-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .clear-cart-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.checkout-btn {
+  margin-top: 10px;
+  width: 100%;
+  padding: 10px 0;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  font-size: .9rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .18s;
+}
+
+.checkout-btn:hover {
+  background: var(--accent-dk);
+}
   </style>
 </head>
 <body>
@@ -324,272 +345,405 @@
     />
   </div>
 
-  <!-- ── Menu content ────────────────────────────────────── -->
-  <main id="menu-container">
-    <!-- JavaScript fills this in after fetching /api/menu -->
-    <p id="status-message">Loading menu…</p>
-  </main>
+  <div id="cart-message"></div>
 
-  <script>
-    let allCategories = [];
+  <div class="promo-box">
+    <input type="text" id="promo-input"
+      placeholder="Enter promo code e.g. SAVE10"
+      aria-label="Promo code" />
+    <button id="apply-promo-btn">Apply Promo</button>
+  </div>
 
-    // ── Fetch menu data from the Flask API ─────────────────
-    async function fetchMenu() {
-      try {
-        const res = await fetch("/api/menu");
-        if (!res.ok) throw new Error("Server returned status " + res.status);
-        const data = await res.json();
-        allCategories = data.categories;
-        renderMenu(allCategories);
-      } catch (err) {
-        document.getElementById("status-message").textContent =
-          "Failed to load menu. Please refresh the page.";
-        console.error("Menu fetch error:", err);
-      }
-    }
+  <div class="page-body">
 
-    function renderMenu(categories) {
-      const container = document.getElementById("menu-container");
-      container.innerHTML = "";
+    <div id="menu-container">
+      <p id="status-message">Loading menu…</p>
+    </div>
 
-      const visible = categories.filter(cat => cat.items.length > 0);
-      if (visible.length === 0) {
-        container.innerHTML = '<p class="no-results">No items match your search.</p>';
-        return;
-      }
+    <aside class="cart-panel">
+  <h2>Your Order</h2>
 
-      visible.forEach(category => {
-        const section = document.createElement("section");
-        section.className = "category-section";
+  <ul id="cart-items-list">
+    <li class="cart-empty-msg">No items added yet.</li>
+  </ul>
 
-        const heading = document.createElement("h2");
-        heading.className = "category-title";
-        heading.textContent = category.name;
-        section.appendChild(heading);
+  <hr class="cart-divider" />
 
-        const grid = document.createElement("div");
-        grid.className = "items-grid";
-        category.items.forEach(item => grid.appendChild(buildCard(item)));
+  <div class="cart-total-row">
+    <span>Total</span>
+    <span id="cart-total-display">$0.00</span>
+  </div>
 
-        section.appendChild(grid);
-        container.appendChild(section);
+  <div class="cart-discount-row" id="cart-discount-row">
+    <span>Promo discount</span>
+    <span id="cart-discount-display"></span>
+  </div>
+
+  <button class="clear-cart-btn" id="clear-cart-btn">
+    Clear order
+  </button>
+
+  <button class="checkout-btn" id="checkout-btn">
+    Go to Checkout
+  </button>
+  </aside>
+
+  </div>
+
+ <script>
+  let allCategories = [];
+  const SESSION_ID = "browser_session";
+  const orderMap = {};
+  let appliedDiscount = 0;
+
+  function showCartMessage(message, type) {
+    const box = document.getElementById("cart-message");
+    if (!box) return;
+    box.textContent = message;
+    box.className = type;
+  }
+
+  function getCartSubtotal() {
+    return Object.values(orderMap).reduce(
+      (sum, { item, quantity }) => sum + item.price * quantity,
+      0
+    );
+  }
+
+  function renderCartPanel() {
+    const list = document.getElementById("cart-items-list");
+    const totalEl = document.getElementById("cart-total-display");
+    const discRow = document.getElementById("cart-discount-row");
+    const discEl = document.getElementById("cart-discount-display");
+
+    if (!list || !totalEl || !discRow || !discEl) return;
+
+    list.innerHTML = "";
+    const entries = Object.values(orderMap);
+
+    if (entries.length === 0) {
+      list.innerHTML = '<li class="cart-empty-msg">No items added yet.</li>';
+    } else {
+      entries.forEach(({ item, quantity }) => {
+        const li = document.createElement("li");
+        li.className = "cart-line";
+        li.innerHTML =
+          `<span class="cart-line-name">${item.name}</span>` +
+          `<span class="cart-line-meta">` +
+          `<span class="cart-line-qty">×${quantity}</span>` +
+          `<span class="cart-line-price">$${(item.price * quantity).toFixed(2)}</span>` +
+          `</span>`;
+        list.appendChild(li);
       });
     }
 
-/* ── Build photo element ── */
-/* ── Build photo element ── */
-function buildPhotoEl(itemName) {
-  const img = document.createElement("img");
-  img.className = "item-photo";
-  img.alt = itemName;
+    const finalTotal = Math.max(0, getCartSubtotal() - appliedDiscount);
+    totalEl.textContent = "$" + finalTotal.toFixed(2);
 
-  const imageMap = {
-    "Chicken Shawarma": "/static/images/shawarma.jpg.jpeg",
-    "Falafel Wrap": "/static/images/falafel.jpg.jpeg",
-    "Cola": "/static/images/cola.jpg.jpeg",
-    "Fries": "/static/images/fries.jpg.jpeg"
-  };
-
-  img.src = imageMap[itemName] || "";
-
-  img.onerror = function () {
-    const ph = document.createElement("div");
-    ph.className = "item-photo-placeholder";
-    ph.textContent = "🍽️";
-    img.replaceWith(ph);
-  };
-
-  return img;
-}
-    /* ── Build card ── */
-    function buildCard(item) {
-      const card = document.createElement("div");
-      card.className = "item-card" + (item.is_available ? "" : " unavailable");
-
-      // Photo
-      card.appendChild(buildPhotoEl(item.name));
-
-      // Body
-      const body = document.createElement("div");
-      body.className = "item-body";
-
-      const name = document.createElement("p");
-      name.className = "item-name";
-      name.textContent = item.name;
-
-      const price = document.createElement("p");
-      price.className = "item-price";
-      price.textContent = "$" + item.price.toFixed(2);
-
-      const badge = document.createElement("span");
-      badge.className = "badge " + (item.is_available ? "available" : "unavailable");
-      badge.textContent = item.is_available ? "Available" : "Unavailable";
-
-      body.appendChild(name);
-      body.appendChild(price);
-      body.appendChild(badge);
-
-      if (item.is_available) {
-        // Qty stepper
-        const qtyRow = document.createElement("div");
-        qtyRow.className = "qty-row";
-
-        const minusBtn = document.createElement("button");
-        minusBtn.className = "qty-btn";
-        minusBtn.textContent = "−";
-        minusBtn.setAttribute("aria-label", "Decrease quantity");
-
-        const qtyDisplay = document.createElement("span");
-        qtyDisplay.className = "qty-display";
-        qtyDisplay.textContent = "1";
-
-        const plusBtn = document.createElement("button");
-        plusBtn.className = "qty-btn";
-        plusBtn.textContent = "+";
-        plusBtn.setAttribute("aria-label", "Increase quantity");
-
-        qtyRow.appendChild(minusBtn);
-        qtyRow.appendChild(qtyDisplay);
-        qtyRow.appendChild(plusBtn);
-
-        minusBtn.addEventListener("click", function () {
-          let q = parseInt(qtyDisplay.textContent);
-          if (q > 1) qtyDisplay.textContent = q - 1;
-        });
-        plusBtn.addEventListener("click", function () {
-          qtyDisplay.textContent = parseInt(qtyDisplay.textContent) + 1;
-        });
-
-        // Add to Cart button — calls /api/cart/add
-        const button = document.createElement("button");
-        button.className = "btn-cart";
-        button.textContent = "Add to Cart";
-
-        button.addEventListener("click", async function () {
-          const qty = parseInt(qtyDisplay.textContent);
-          button.disabled = true;
-          button.textContent = "Adding…";
-
-          try {
-            const res = await fetch("/api/cart/add", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ session_id: SESSION_ID, item_id: item.id, quantity: qty })
-            });
-            const data = await res.json();
-
-            if (res.ok) {
-              if (orderMap[item.id]) orderMap[item.id].quantity += qty;
-              else orderMap[item.id] = { item, quantity: qty };
-              renderCartPanel();
-              showCartMessage(
-                data.message + " | Cart Total: $" + data.cart_total.toFixed(2),
-                "success"
-              );
-              qtyDisplay.textContent = "1";
-            } else {
-              showCartMessage(data.error || "Could not add item.", "error");
-            }
-          } catch (err) {
-            showCartMessage("Failed to add item to cart. Please try again.", "error");
-            console.error("Add to cart error:", err);
-          } finally {
-            button.disabled = false;
-            button.textContent = "Add to Cart";
-          }
-        });
-
-        body.appendChild(qtyRow);
-        body.appendChild(button);
-      } else {
-        const button = document.createElement("button");
-        button.className = "btn-cart";
-        button.textContent = "Unavailable";
-        button.disabled = true;
-        body.appendChild(button);
-      }
-
-      card.appendChild(body);
-      return card;
+    if (appliedDiscount > 0) {
+      discRow.classList.add("visible");
+      discEl.textContent = "−$" + appliedDiscount.toFixed(2);
+    } else {
+      discRow.classList.remove("visible");
     }
-
-    /* ── Search ── */
-    document.getElementById("search-input").addEventListener("input", function () {
-      const query = this.value.trim().toLowerCase();
-      if (query === "") { renderMenu(allCategories); return; }
-      const filtered = allCategories.map(cat => ({
-        name:  cat.name,
-        items: cat.items.filter(i => i.name.toLowerCase().includes(query))
-      }));
-      renderMenu(filtered);
-    });
-
-/* ── Promo code — calls /api/promo/apply ── */
-document.getElementById("apply-promo-btn").addEventListener("click", async function () {
-  const promoInput = document.getElementById("promo-input");
-  const btn = this;
-  const code = promoInput.value.trim();
-
-  if (!code) {
-    showCartMessage("Please enter a promo code.", "error");
-    return;
   }
 
-  btn.disabled = true;
-  btn.textContent = "Applying…";
+  async function fetchMenu() {
+    try {
+      const res = await fetch("/api/menu");
+      if (!res.ok) throw new Error("Server returned status " + res.status);
 
-  try {
-    const res = await fetch("/api/promo/apply", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        session_id: SESSION_ID,
-        code: code
-      })
+      const data = await res.json();
+      allCategories = data.categories;
+      renderMenu(allCategories);
+
+    } catch (err) {
+      const status = document.getElementById("status-message");
+      if (status) {
+        status.textContent = "Failed to load menu. Please refresh the page.";
+      }
+      console.error("Menu fetch error:", err);
+    }
+  }
+
+  function renderMenu(categories) {
+    const container = document.getElementById("menu-container");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    const visible = categories.filter(cat => cat.items.length > 0);
+    if (visible.length === 0) {
+      container.innerHTML = '<p class="no-results">No items match your search.</p>';
+      return;
+    }
+
+    visible.forEach(category => {
+      const section = document.createElement("section");
+      section.className = "category-section";
+
+      const heading = document.createElement("h2");
+      heading.className = "category-title";
+      heading.textContent = category.name;
+      section.appendChild(heading);
+
+      const grid = document.createElement("div");
+      grid.className = "items-grid";
+
+      category.items.forEach(item => {
+        grid.appendChild(buildCard(item));
+      });
+
+      section.appendChild(grid);
+      container.appendChild(section);
     });
+  }
 
-    const data = await res.json();
-    console.log("Promo response:", data);
+  function buildPhotoEl(itemName) {
+    const img = document.createElement("img");
+    img.className = "item-photo";
+    img.alt = itemName;
 
-    if (res.ok) {
-      const newTotal = Number(data.new_total);
-      const discountAmount = Number(data.discount_amount);
+    const imageMap = {
+      "Chicken Shawarma": "/static/images/shawarma.jpg.jpeg",
+      "Falafel Wrap": "/static/images/falafel.jpg.jpeg",
+      "Cola": "/static/images/cola.jpg.jpeg",
+      "Fries": "/static/images/fries.jpg.jpeg"
+    };
 
-      appliedDiscount = discountAmount;
+    img.src = imageMap[itemName] || "";
 
-      showCartMessage(
-        data.message + " | New Total: $" + newTotal.toFixed(2),
-        "success"
-      );
+    img.onerror = function () {
+      const ph = document.createElement("div");
+      ph.className = "item-photo-placeholder";
+      ph.textContent = "🍽️";
+      img.replaceWith(ph);
+    };
 
-      renderCartPanel();
+    return img;
+  }
+
+  function buildCard(item) {
+    const card = document.createElement("div");
+    card.className = "item-card" + (item.is_available ? "" : " unavailable");
+
+    card.appendChild(buildPhotoEl(item.name));
+
+    const body = document.createElement("div");
+    body.className = "item-body";
+
+    const name = document.createElement("p");
+    name.className = "item-name";
+    name.textContent = item.name;
+
+    const price = document.createElement("p");
+    price.className = "item-price";
+    price.textContent = "$" + item.price.toFixed(2);
+
+    const badge = document.createElement("span");
+    badge.className = "badge " + (item.is_available ? "available" : "unavailable");
+    badge.textContent = item.is_available ? "Available" : "Unavailable";
+
+    body.appendChild(name);
+    body.appendChild(price);
+    body.appendChild(badge);
+
+    if (item.is_available) {
+      const qtyRow = document.createElement("div");
+      qtyRow.className = "qty-row";
+
+      const minusBtn = document.createElement("button");
+      minusBtn.className = "qty-btn";
+      minusBtn.textContent = "−";
+
+      const qtyDisplay = document.createElement("span");
+      qtyDisplay.className = "qty-display";
+      qtyDisplay.textContent = "1";
+
+      const plusBtn = document.createElement("button");
+      plusBtn.className = "qty-btn";
+      plusBtn.textContent = "+";
+
+      minusBtn.addEventListener("click", function () {
+        let q = parseInt(qtyDisplay.textContent);
+        if (q > 1) qtyDisplay.textContent = q - 1;
+      });
+
+      plusBtn.addEventListener("click", function () {
+        qtyDisplay.textContent = parseInt(qtyDisplay.textContent) + 1;
+      });
+
+      qtyRow.appendChild(minusBtn);
+      qtyRow.appendChild(qtyDisplay);
+      qtyRow.appendChild(plusBtn);
+
+      const button = document.createElement("button");
+      button.className = "btn-cart";
+      button.textContent = "Add to Cart";
+
+      button.addEventListener("click", async function () {
+        const qty = parseInt(qtyDisplay.textContent);
+        button.disabled = true;
+        button.textContent = "Adding…";
+
+        try {
+          const res = await fetch("/api/cart/add", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              session_id: SESSION_ID,
+              item_id: item.id,
+              quantity: qty
+            })
+          });
+
+          const data = await res.json();
+
+          if (res.ok) {
+            if (orderMap[item.id]) {
+              orderMap[item.id].quantity += qty;
+            } else {
+              orderMap[item.id] = { item, quantity: qty };
+            }
+
+            renderCartPanel();
+            showCartMessage(
+              data.message + " | Cart Total: $" + data.cart_total.toFixed(2),
+              "success"
+            );
+            qtyDisplay.textContent = "1";
+          } else {
+            showCartMessage(data.error || "Could not add item.", "error");
+          }
+
+        } catch (err) {
+          showCartMessage("Failed to add item to cart. Please try again.", "error");
+          console.error("Add to cart error:", err);
+
+        } finally {
+          button.disabled = false;
+          button.textContent = "Add to Cart";
+        }
+      });
+
+      body.appendChild(qtyRow);
+      body.appendChild(button);
 
     } else {
-      if (data.cart_total !== undefined && data.cart_total !== null) {
-        const cartTotal = Number(data.cart_total);
-
-        showCartMessage(
-          data.error + " | Total remains: $" + cartTotal.toFixed(2),
-          "error"
-        );
-      } else {
-        showCartMessage(data.error || "Invalid promo code. Please try again.", "error");
-      }
+      const button = document.createElement("button");
+      button.className = "btn-cart";
+      button.textContent = "Unavailable";
+      button.disabled = true;
+      body.appendChild(button);
     }
 
-  } catch (err) {
-    showCartMessage("Failed to apply promo code. Please try again.", "error");
-    console.error("Promo apply error:", err);
-
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Apply Promo";
+    card.appendChild(body);
+    return card;
   }
-});
+
+  function initMenuPage() {
+    const clearCartBtn = document.getElementById("clear-cart-btn");
+    if (clearCartBtn) {
+      clearCartBtn.addEventListener("click", function () {
+        Object.keys(orderMap).forEach(k => delete orderMap[k]);
+        appliedDiscount = 0;
+        document.querySelectorAll(".qty-display").forEach(el => el.textContent = "1");
+        renderCartPanel();
+
+        const msg = document.getElementById("cart-message");
+        if (msg) msg.className = "";
+      });
+    }
+
+    const searchInput = document.getElementById("search-input");
+    if (searchInput) {
+      searchInput.addEventListener("input", function () {
+        const query = this.value.trim().toLowerCase();
+
+        if (query === "") {
+          renderMenu(allCategories);
+          return;
+        }
+
+        const filtered = allCategories.map(cat => ({
+          name: cat.name,
+          items: cat.items.filter(i => i.name.toLowerCase().includes(query))
+        }));
+
+        renderMenu(filtered);
+      });
+    }
+
+    const applyPromoBtn = document.getElementById("apply-promo-btn");
+    if (applyPromoBtn) {
+      applyPromoBtn.addEventListener("click", async function () {
+        const promoInput = document.getElementById("promo-input");
+        const code = promoInput ? promoInput.value.trim() : "";
+
+        if (!code) {
+          showCartMessage("Please enter a promo code.", "error");
+          return;
+        }
+
+        applyPromoBtn.disabled = true;
+        applyPromoBtn.textContent = "Applying…";
+
+        try {
+          const res = await fetch("/api/promo/apply", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              session_id: SESSION_ID,
+              code: code
+            })
+          });
+
+          const data = await res.json();
+
+          if (res.ok) {
+            appliedDiscount = Number(data.discount_amount);
+
+            showCartMessage(
+              data.message + " | New Total: $" + Number(data.new_total).toFixed(2),
+              "success"
+            );
+
+            renderCartPanel();
+
+          } else {
+            showCartMessage(data.error || "Invalid promo code. Please try again.", "error");
+          }
+
+        } catch (err) {
+          showCartMessage("Failed to apply promo code. Please try again.", "error");
+          console.error("Promo apply error:", err);
+
+        } finally {
+          applyPromoBtn.disabled = false;
+          applyPromoBtn.textContent = "Apply Promo";
+        }
+      });
+    }
+
+    const checkoutBtn = document.getElementById("checkout-btn");
+    if (checkoutBtn) {
+      checkoutBtn.addEventListener("click", function () {
+        if (Object.keys(orderMap).length === 0) {
+          showCartMessage("Please add at least one item before checkout.", "error");
+          return;
+        }
+
+        window.location.href = "/checkout";
+      });
+    }
+
+    renderCartPanel();
+    console.log("SCRIPT IS RUNNING");
     fetchMenu();
-  </script>
+  }
+
+  document.addEventListener("DOMContentLoaded", initMenuPage);
+</script>
 
 </body>
 </html>

@@ -370,6 +370,7 @@
     /* ── Notification ── */
     function showCartMessage(message, type) {
       const box = document.getElementById("cart-message");
+      if (!box) return;
       box.textContent = message;
       box.className = type;
     }
@@ -387,13 +388,15 @@
       const totalEl  = document.getElementById("cart-total-display");
       const discRow  = document.getElementById("cart-discount-row");
       const discEl   = document.getElementById("cart-discount-display");
+      if (!list || !totalEl || !discRow || !discEl) return;
 
       list.innerHTML = "";
       const entries = Object.values(orderMap);
 
       if (entries.length === 0) {
         list.innerHTML = '<li class="cart-empty-msg">No items added yet.</li>';
-        document.getElementById("checkout-btn").disabled = true;
+        const checkoutBtn = document.getElementById("checkout-btn");
+        if (checkoutBtn) checkoutBtn.disabled = true;
       } else {
         entries.forEach(({ item, quantity }) => {
           const li = document.createElement("li");
@@ -410,9 +413,8 @@
 
       const finalTotal = Math.max(0, getCartSubtotal() - appliedDiscount);
       totalEl.textContent = "$" + finalTotal.toFixed(2);
-
-      // Enable checkout button when there are items
-      document.getElementById("checkout-btn").disabled = entries.length === 0;
+      const checkoutBtn = document.getElementById("checkout-btn");
+      if (checkoutBtn) checkoutBtn.disabled = entries.length === 0;
 
       if (appliedDiscount > 0) {
         discRow.classList.add("visible");
@@ -421,20 +423,6 @@
         discRow.classList.remove("visible");
       }
     }
-
-    /* ── Clear order ── */
-    document.getElementById("clear-cart-btn").addEventListener("click", function () {
-      Object.keys(orderMap).forEach(k => delete orderMap[k]);
-      appliedDiscount = 0;
-      document.querySelectorAll(".qty-display").forEach(el => el.textContent = "1");
-      renderCartPanel();
-      document.getElementById("cart-message").className = "";
-    });
-
-    /* ── Proceed to checkout ── */
-    document.getElementById("checkout-btn").addEventListener("click", function () {
-      window.location.href = "/checkout";
-    });
 
     /* ── Fetch menu from Flask ── */
     async function fetchMenu() {
@@ -617,81 +605,97 @@ function buildPhotoEl(itemName) {
     }
 
     /* ── Search ── */
-    document.getElementById("search-input").addEventListener("input", function () {
-      const query = this.value.trim().toLowerCase();
-      if (query === "") { renderMenu(allCategories); return; }
-      const filtered = allCategories.map(cat => ({
-        name:  cat.name,
-        items: cat.items.filter(i => i.name.toLowerCase().includes(query))
-      }));
-      renderMenu(filtered);
-    });
 
 /* ── Promo code — calls /api/promo/apply ── */
-document.getElementById("apply-promo-btn").addEventListener("click", async function () {
-  const promoInput = document.getElementById("promo-input");
-  const btn = this;
-  const code = promoInput.value.trim();
+    function initMenuFullPage() {
+      const clearCartBtn = document.getElementById("clear-cart-btn");
+      if (clearCartBtn) {
+        clearCartBtn.addEventListener("click", function () {
+          Object.keys(orderMap).forEach(k => delete orderMap[k]);
+          appliedDiscount = 0;
+          document.querySelectorAll(".qty-display").forEach(el => el.textContent = "1");
+          renderCartPanel();
+          const msg = document.getElementById("cart-message");
+          if (msg) msg.className = "";
+        });
+      }
 
-  if (!code) {
-    showCartMessage("Please enter a promo code.", "error");
-    return;
-  }
+      const checkoutBtn = document.getElementById("checkout-btn");
+      if (checkoutBtn) {
+        checkoutBtn.addEventListener("click", function () {
+          window.location.href = "/checkout";
+        });
+      }
 
-  btn.disabled = true;
-  btn.textContent = "Applying…";
+      const searchInput = document.getElementById("search-input");
+      if (searchInput) {
+        searchInput.addEventListener("input", function () {
+          const query = this.value.trim().toLowerCase();
+          if (query === "") { renderMenu(allCategories); return; }
+          const filtered = allCategories.map(cat => ({
+            name: cat.name,
+            items: cat.items.filter(i => i.name.toLowerCase().includes(query))
+          }));
+          renderMenu(filtered);
+        });
+      }
 
-  try {
-    const res = await fetch("/api/promo/apply", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        session_id: SESSION_ID,
-        code: code
-      })
-    });
+      const applyPromoBtn = document.getElementById("apply-promo-btn");
+      if (applyPromoBtn) {
+        applyPromoBtn.addEventListener("click", async function () {
+          const promoInput = document.getElementById("promo-input");
+          const btn = this;
+          const code = promoInput ? promoInput.value.trim() : "";
 
-    const data = await res.json();
-    console.log("Promo response:", data);
+          if (!code) {
+            showCartMessage("Please enter a promo code.", "error");
+            return;
+          }
 
-    if (res.ok) {
-      const newTotal = Number(data.new_total);
-      const discountAmount = Number(data.discount_amount);
+          btn.disabled = true;
+          btn.textContent = "Applying…";
 
-      appliedDiscount = discountAmount;
+          try {
+            const res = await fetch("/api/promo/apply", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ session_id: SESSION_ID, code: code })
+            });
 
-      showCartMessage(
-        data.message + " | New Total: $" + newTotal.toFixed(2),
-        "success"
-      );
+            const data = await res.json();
+            console.log("Promo response:", data);
+
+            if (res.ok) {
+              const newTotal = Number(data.new_total);
+              const discountAmount = Number(data.discount_amount);
+              appliedDiscount = discountAmount;
+              showCartMessage(data.message + " | New Total: $" + newTotal.toFixed(2), "success");
+              renderCartPanel();
+            } else {
+              if (data.cart_total !== undefined && data.cart_total !== null) {
+                const cartTotal = Number(data.cart_total);
+                showCartMessage(data.error + " | Total remains: $" + cartTotal.toFixed(2), "error");
+              } else {
+                showCartMessage(data.error || "Invalid promo code. Please try again.", "error");
+              }
+            }
+
+          } catch (err) {
+            showCartMessage("Failed to apply promo code. Please try again.", "error");
+            console.error("Promo apply error:", err);
+
+          } finally {
+            btn.disabled = false;
+            btn.textContent = "Apply Promo";
+          }
+        });
+      }
 
       renderCartPanel();
-
-    } else {
-      if (data.cart_total !== undefined && data.cart_total !== null) {
-        const cartTotal = Number(data.cart_total);
-
-        showCartMessage(
-          data.error + " | Total remains: $" + cartTotal.toFixed(2),
-          "error"
-        );
-      } else {
-        showCartMessage(data.error || "Invalid promo code. Please try again.", "error");
-      }
+      fetchMenu();
     }
 
-  } catch (err) {
-    showCartMessage("Failed to apply promo code. Please try again.", "error");
-    console.error("Promo apply error:", err);
-
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Apply Promo";
-  }
-});
-    fetchMenu();
+    document.addEventListener("DOMContentLoaded", initMenuFullPage);
   </script>
 
 </body>
