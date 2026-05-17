@@ -4,6 +4,7 @@ from models.database import init_db, seed_data
 from services.menu_service import get_all_items
 from services.cart_service import add_to_cart, remove_from_cart, calculate_cart_total, get_or_create_cart
 from services.promo_service import apply_promo_code
+from services.order_service import create_order, get_order_by_code
 from models.database import get_connection
 import datetime
 import random
@@ -11,7 +12,9 @@ import random
 app = Flask(__name__)
 
 
-# --- Page Routes ---
+# -----------------------------
+# Page Routes
+# -----------------------------
 
 @app.route("/")
 def index():
@@ -30,6 +33,15 @@ def checkout_page():
 
 @app.route("/confirmation/<order_code>")
 def confirmation_page(order_code):
+    return render_template(
+        "confirmation.html",
+        order_code=order_code
+    )
+
+
+# -----------------------------
+# API Routes
+# -----------------------------
     return render_template("confirmation.html", order_code=order_code)
 
 
@@ -38,12 +50,12 @@ def confirmation_page(order_code):
 @app.route("/api/menu")
 def api_menu():
     data = get_all_items()
-    return jsonify(data)
+    return jsonify(data), 200
 
 
 @app.route("/api/cart/add", methods=["POST"])
 def api_cart_add():
-    data = request.get_json()
+    data = request.get_json() or {}
 
     session_id = data.get("session_id")
     item_id = data.get("item_id")
@@ -59,7 +71,7 @@ def api_cart_add():
 
 @app.route("/api/cart/remove", methods=["POST"])
 def api_cart_remove():
-    data = request.get_json()
+    data = request.get_json() or {}
 
     session_id = data.get("session_id")
     item_id = data.get("item_id")
@@ -74,7 +86,7 @@ def api_cart_remove():
 
 @app.route("/api/promo/apply", methods=["POST"])
 def api_promo_apply():
-    data = request.get_json()
+    data = request.get_json() or {}
 
     session_id = data.get("session_id")
     code = data.get("code")
@@ -91,6 +103,33 @@ def api_promo_apply():
 def api_checkout():
     data = request.get_json() or {}
 
+    result = create_order(
+        session_id=data.get("session_id"),
+        order_type=data.get("order_type"),
+        payment_method=data.get("payment_method"),
+        table_number=data.get("table_number"),
+        pickup_time=data.get("pickup_time")
+    )
+
+    if "error" in result:
+        status_code = result.get("status_code", 400)
+
+        # Remove status_code before sending response
+        result.pop("status_code", None)
+
+        return jsonify(result), status_code
+
+    return jsonify(result), 201
+
+
+@app.route("/api/order/<order_code>", methods=["GET"])
+def api_get_order(order_code):
+    result = get_order_by_code(order_code)
+
+    if "error" in result:
+        return jsonify(result), 404
+
+    return jsonify(result), 200
     session_id = data.get("session_id")
     order_type = data.get("order_type")  # 'Dine-In' or 'Takeaway'
     payment_method = data.get("payment_method", "Cash")
@@ -224,11 +263,16 @@ def api_get_cart():
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok"})
+    return jsonify({"status": "ok"}), 200
 
+
+# -----------------------------
+# App Start
+# -----------------------------
 
 if __name__ == "__main__":
     init_db()
     seed_data()
+
     print("Starting Customer Ordering System...")
     app.run(debug=False, port=5002)
