@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkout — Customer Ordering System</title>
+
+  <style>
+    /* ── Design Tokens (identical to menu.html and confirmation.html) ── */
+    :root {
+      --bg:         #f7f4ef;
+      --surface:    #ffffff;
+      --border:     #e8e2d9;
+      --accent:     #c8401a;
+      --accent-dk:  #a33315;
+      --text-main:  #1a1510;
+      --text-sub:   #6b6256;
+      --badge-ok:   #d4edda;
+      --badge-ok-t: #276237;
+      --badge-no:   #f0e8e8;
+      --badge-no-t: #8c2a2a;
+      --radius:     10px;
+      --shadow:     0 2px 12px rgba(0,0,0,.07);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Georgia, "Times New Roman", serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+    }
+
+    /* ── Header (identical to menu.html and confirmation.html) ── */
+    header {
+      background: var(--text-main);
+      color: #f7f4ef;
+      padding: 28px 32px 22px;
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+    }
+    header h1 { font-size: 1.75rem; font-weight: normal; letter-spacing: .02em; }
+    header span { font-size: .9rem; opacity: .55; font-style: italic; }
+
+    /* ── Page wrapper: max-width centered column ── */
+    .page-body {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 36px 20px 64px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ── Loading and error states ── */
+    #status-message {
+      text-align: center;
+      padding: 60px 0;
+      color: var(--text-sub);
+      font-style: italic;
+      font-size: 1.05rem;
+    }
+    
+    #error-message {
+      display: none;
+      padding: 14px 18px;
+      border-radius: var(--radius);
+      border: 1.5px solid #e0b8b8;
+      background: #f8eeee;
+      color: #8c2a2a;
+      text-align: center;
+      font-size: .93rem;
+    }
+    #error-message.visible { display: block; }
+
+    /* ── Shared card style ── */
+    .card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px 22px 20px;
+    }
+    .card h3 {
+      font-size: .85rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--text-sub);
+      border-bottom: 1.5px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 16px;
+      font-weight: normal;
+    }
+
+    /* ── Items list ── */
+    .items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: .9rem;
+      gap: 8px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .item-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .item-row-left { display: flex; flex-direction: column; gap: 2px; }
+    .item-row-name { color: var(--text-main); font-weight: bold; }
+    .item-row-unit {
+      font-size: .78rem;
+      color: var(--text-sub);
+      font-style: italic;
+    }
+    .item-row-total {
+      color: var(--accent);
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    /* ── Pricing summary ── */
+    .pricing-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1.5px solid var(--border);
+    }
+    .price-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: .9rem;
+      color: var(--text-sub);
+    }
+    .price-row.total {
+      color: var(--text-main);
+      font-weight: bold;
+      font-size: 1.05rem;
+      border-top: 1.5px solid var(--border);
+      padding-top: 8px;
+      margin-top: 8px;
+    }
+    .price-row.total span:last-child { color: var(--accent); }
+
+    /* ── Checkout form ── */
+    .form-card {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .form-group label {
+      font-size: .8rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text-sub);
+      font-weight: bold;
+    }
+
+    .form-group select,
+    .form-group input {
+      padding: 11px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      font-size: .95rem;
+      font-family: Georgia, serif;
+      color: var(--text-main);
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    .form-group select:focus,
+    .form-group input:focus {
+      border-color: var(--accent);
+    }
+
+    .form-group select:disabled {
+      background: var(--bg);
+      color: var(--text-sub);
+      cursor: not-allowed;
+    }
+
+    .form-group input::placeholder {
+      color: var(--text-sub);
+      font-style: italic;
+    }
+
+    /* ── Radio group ── */
+    .radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .radio-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+    }
+
+    .radio-option:hover {
+      background: var(--bg);
+      border-color: var(--accent);
+    }
+
+    .radio-option input[type="radio"] {
+      cursor: pointer;
+      margin: 0;
+    }
+
+    .radio-option label {
+      cursor: pointer;
+      margin: 0;
+      font-size: .95rem;
+      flex: 1;
+      text-transform: none;
+      font-weight: normal;
+    }
+
+    /* ── Conditional field container ── */
+    .conditional-field {
+      display: none;
+    }
+
+    .conditional-field.visible {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* ── Actions ── */
+    .form-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    button {
+      border: none;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: .9rem;
+      cursor: pointer;
+      transition: background .18s;
+      padding: 12px 20px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .btn-submit {
+      flex: 1;
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-submit:hover:not(:disabled) {
+      background: var(--accent-dk);
+    }
+
+    .btn-submit:disabled {
+      background: var(--border);
+      color: var(--text-sub);
+      cursor: not-allowed;
+    }
+
+    .btn-back {
+      background: transparent;
+      color: var(--text-sub);
+      border: 1.5px solid var(--border);
+    }
+
+    .btn-back:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── Empty state ── */
+    .empty-cart-message {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-sub);
+    }
+
+    .empty-cart-message p {
+      font-style: italic;
+      margin-bottom: 20px;
+    }
+
+    .back-to-menu-btn {
+      background: var(--text-main);
+      color: #f7f4ef;
+      display: inline-block;
+      padding: 12px 24px;
+      text-decoration: none;
+      border-radius: var(--radius);
+    }
+
+    .back-to-menu-btn:hover {
+      background: var(--accent);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Checkout</h1>
+    <span>Customer Ordering System</span>
+  </header>
+
+  <div class="page-body">
+    <div id="error-message"></div>
+    <p id="status-message">Loading your order…</p>
+
+    <div id="checkout-content" style="display: none;">
+      <!-- Order Summary -->
+      <div class="card">
+        <h3>Order Summary</h3>
+        <div class="items-list" id="cart-items"></div>
+        <div class="pricing-rows" id="pricing-summary"></div>
+      </div>
+
+      <!-- Checkout Form -->
+      <form class="card form-card" id="checkout-form">
+        <!-- Order Type -->
+        <div class="form-group">
+          <label>Order Type</label>
+          <div class="radio-group">
+            <div class="radio-option">
+              <input type="radio" id="order-type-pickup" name="order_type" value="Takeaway" required>
+              <label for="order-type-pickup">Pickup</label>
+            </div>
+            <div class="radio-option">
+              <input type="radio" id="order-type-dine" name="order_type" value="Dine-In" required>
+              <label for="order-type-dine">Dine In</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pickup Time (conditional) -->
+        <div class="form-group conditional-field" id="pickup-time-field">
+          <label for="pickup-time">Pickup Time</label>
+          <input type="time" id="pickup-time" name="pickup_time" />
+        </div>
+
+        <!-- Table Number (conditional) -->
+        <div class="form-group conditional-field" id="table-field">
+          <label for="table-number">Table Number</label>
+          <input type="number" id="table-number" name="table_number" min="1" placeholder="e.g. 5" />
+        </div>
+
+        <!-- Payment Method -->
+        <div class="form-group">
+          <label>Payment Method</label>
+          <div class="radio-group">
+            <div class="radio-option">
+              <input type="radio" id="payment-cash" name="payment_method" value="Cash" required>
+              <label for="payment-cash">Cash</label>
+            </div>
+            <div class="radio-option">
+              <input type="radio" id="payment-card" name="payment_method" value="Mock Card" required>
+              <label for="payment-card">Card</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="form-actions">
+          <button type="button" class="btn-back" id="back-to-menu-btn">Back to Menu</button>
+          <button type="submit" class="btn-submit" id="submit-btn">Place Order</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="empty-cart-container" style="display: none;">
+      <div class="empty-cart-message">
+        <p>Your cart is empty. Please add items before checking out.</p>
+        <a href="/menu" class="back-to-menu-btn">Back to Menu</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SESSION_ID = "browser_session";
+    let cartData = { items: [], subtotal: 0 };
+
+    async function loadCart() {
+      try {
+        const statusEl = document.getElementById("status-message");
+        const res = await fetch(`/api/cart?session_id=${SESSION_ID}`);
+
+        if (!res.ok) {
+          throw new Error("Failed to load cart");
+        }
+
+        cartData = await res.json();
+        statusEl.style.display = "none";
+
+        if (cartData.items.length === 0) {
+          showEmptyCart();
+        } else {
+          renderCheckout();
+        }
+      } catch (err) {
+        const errorEl = document.getElementById("error-message");
+        errorEl.textContent = "Failed to load cart. Please try again.";
+        errorEl.classList.add("visible");
+        console.error("Cart load error:", err);
+      }
+    }
+
+    function showEmptyCart() {
+      const emptyEl = document.getElementById("empty-cart-container");
+      emptyEl.style.display = "block";
+    }
+
+    function renderCheckout() {
+      const contentEl = document.getElementById("checkout-content");
+      contentEl.style.display = "block";
+
+      // Render cart items
+      const itemsEl = document.getElementById("cart-items");
+      itemsEl.innerHTML = "";
+
+      cartData.items.forEach(item => {
+        const itemTotal = (item.unit_price * item.quantity).toFixed(2);
+        const row = document.createElement("div");
+        row.className = "item-row";
+        row.innerHTML = `
+          <div class="item-row-left">
+            <span class="item-row-name">${item.name}</span>
+            <span class="item-row-unit">$${item.unit_price.toFixed(2)} each</span>
+          </div>
+          <div class="item-row-meta">
+            <span class="item-row-unit">×${item.quantity}</span>
+            <span class="item-row-total">$${itemTotal}</span>
+          </div>
+        `;
+        itemsEl.appendChild(row);
+      });
+
+      // Render pricing summary
+      const pricingEl = document.getElementById("pricing-summary");
+      pricingEl.innerHTML = `
+        <div class="price-row">
+          <span>Subtotal</span>
+          <span>$${cartData.subtotal.toFixed(2)}</span>
+        </div>
+        <div class="price-row total">
+          <span>Total</span>
+          <span>$${cartData.subtotal.toFixed(2)}</span>
+        </div>
+      `;
+
+      setupFormHandlers();
+    }
+
+    function setupFormHandlers() {
+      const form = document.getElementById("checkout-form");
+      const orderTypeInputs = document.querySelectorAll('input[name="order_type"]');
+      const pickupTimeField = document.getElementById("pickup-time-field");
+      const tableField = document.getElementById("table-field");
+      const backBtn = document.getElementById("back-to-menu-btn");
+      const submitBtn = document.getElementById("submit-btn");
+
+      // Handle order type change
+      orderTypeInputs.forEach(input => {
+        input.addEventListener("change", function () {
+          if (this.value === "Takeaway") {
+            pickupTimeField.classList.add("visible");
+            tableField.classList.remove("visible");
+            document.getElementById("pickup-time").required = true;
+            document.getElementById("table-number").required = false;
+          } else {
+            pickupTimeField.classList.remove("visible");
+            tableField.classList.add("visible");
+            document.getElementById("pickup-time").required = false;
+            document.getElementById("table-number").required = true;
+          }
+        });
+      });
+
+      // Back button
+      backBtn.addEventListener("click", function () {
+        window.location.href = "/menu";
+      });
+
+      // Form submission
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        const orderType = document.querySelector('input[name="order_type"]:checked').value;
+        const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+
+        const payload = {
+          session_id: SESSION_ID,
+          order_type: orderType,
+          payment_method: paymentMethod
+        };
+
+        if (orderType === "Takeaway") {
+          payload.pickup_time = document.getElementById("pickup-time").value;
+        } else {
+          payload.table_number = parseInt(document.getElementById("table-number").value);
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Processing…";
+
+        try {
+          const res = await fetch("/api/checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+
+          const data = await res.json();
+
+          if (res.ok) {
+            // Redirect to confirmation page
+            window.location.href = `/confirmation/${data.order_code}`;
+          } else {
+            const errorEl = document.getElementById("error-message");
+            errorEl.textContent = data.error || "Failed to place order. Please try again.";
+            errorEl.classList.add("visible");
+          }
+        } catch (err) {
+          const errorEl = document.getElementById("error-message");
+          errorEl.textContent = "Failed to place order. Please try again.";
+          errorEl.classList.add("visible");
+          console.error("Checkout error:", err);
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Place Order";
+        }
+      });
+    }
+
+    // Load cart on page load
+    document.addEventListener("DOMContentLoaded", loadCart);
+  </script>
+
+</body>
+</html>
