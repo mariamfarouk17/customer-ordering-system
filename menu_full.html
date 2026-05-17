@@ -324,16 +324,119 @@
     />
   </div>
 
-  <!-- ── Menu content ────────────────────────────────────── -->
-  <main id="menu-container">
-    <!-- JavaScript fills this in after fetching /api/menu -->
-    <p id="status-message">Loading menu…</p>
-  </main>
+  <div id="cart-message"></div>
+
+  <div class="promo-box">
+    <input type="text" id="promo-input"
+      placeholder="Enter promo code e.g. SAVE10"
+      aria-label="Promo code" />
+    <button id="apply-promo-btn">Apply Promo</button>
+  </div>
+
+  <div class="page-body">
+
+    <div id="menu-container">
+      <p id="status-message">Loading menu…</p>
+    </div>
+
+    <aside class="cart-panel">
+      <h2>Your Order</h2>
+      <ul id="cart-items-list">
+        <li class="cart-empty-msg">No items added yet.</li>
+      </ul>
+      <hr class="cart-divider" />
+      <div class="cart-total-row">
+        <span>Total</span>
+        <span id="cart-total-display">$0.00</span>
+      </div>
+      <div class="cart-discount-row" id="cart-discount-row">
+        <span>Promo discount</span>
+        <span id="cart-discount-display"></span>
+      </div>
+      <button class="clear-cart-btn" id="clear-cart-btn">Clear order</button>
+      <button class="clear-cart-btn" id="checkout-btn" style="margin-top:8px;background:var(--accent);color:#fff;border-color:var(--accent);">Proceed to Checkout</button>
+    </aside>
+
+  </div>
 
   <script>
     let allCategories = [];
+    const SESSION_ID = "browser_session";
 
-    // ── Fetch menu data from the Flask API ─────────────────
+    // Tracks items added to sidebar: { itemId -> { item, quantity } }
+    const orderMap = {};
+    let appliedDiscount = 0;
+
+    /* ── Notification ── */
+    function showCartMessage(message, type) {
+      const box = document.getElementById("cart-message");
+      box.textContent = message;
+      box.className = type;
+    }
+
+    /* ── Cart math ── */
+    function getCartSubtotal() {
+      return Object.values(orderMap).reduce(
+        (sum, { item, quantity }) => sum + item.price * quantity, 0
+      );
+    }
+
+    /* ── Render sidebar ── */
+    function renderCartPanel() {
+      const list     = document.getElementById("cart-items-list");
+      const totalEl  = document.getElementById("cart-total-display");
+      const discRow  = document.getElementById("cart-discount-row");
+      const discEl   = document.getElementById("cart-discount-display");
+
+      list.innerHTML = "";
+      const entries = Object.values(orderMap);
+
+      if (entries.length === 0) {
+        list.innerHTML = '<li class="cart-empty-msg">No items added yet.</li>';
+        document.getElementById("checkout-btn").disabled = true;
+      } else {
+        entries.forEach(({ item, quantity }) => {
+          const li = document.createElement("li");
+          li.className = "cart-line";
+          li.innerHTML =
+            `<span class="cart-line-name">${item.name}</span>` +
+            `<span class="cart-line-meta">` +
+              `<span class="cart-line-qty">×${quantity}</span>` +
+              `<span class="cart-line-price">$${(item.price * quantity).toFixed(2)}</span>` +
+            `</span>`;
+          list.appendChild(li);
+        });
+      }
+
+      const finalTotal = Math.max(0, getCartSubtotal() - appliedDiscount);
+      totalEl.textContent = "$" + finalTotal.toFixed(2);
+
+      // Enable checkout button when there are items
+      document.getElementById("checkout-btn").disabled = entries.length === 0;
+
+      if (appliedDiscount > 0) {
+        discRow.classList.add("visible");
+        discEl.textContent = "−$" + appliedDiscount.toFixed(2);
+      } else {
+        discRow.classList.remove("visible");
+      }
+    }
+
+    /* ── Clear order ── */
+    document.getElementById("clear-cart-btn").addEventListener("click", function () {
+      Object.keys(orderMap).forEach(k => delete orderMap[k]);
+      appliedDiscount = 0;
+      document.querySelectorAll(".qty-display").forEach(el => el.textContent = "1");
+      renderCartPanel();
+      document.getElementById("cart-message").className = "";
+    });
+
+    /* ── Proceed to checkout ── */
+    document.getElementById("checkout-btn").addEventListener("click", function () {
+      window.location.href = "/checkout";
+    });
+
+    /* ── Fetch menu from Flask ── */
     async function fetchMenu() {
       try {
         const res = await fetch("/api/menu");

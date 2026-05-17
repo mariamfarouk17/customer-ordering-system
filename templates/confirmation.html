@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Confirmed — Customer Ordering System</title>
+
+  <style>
+    /* ── Design Tokens (identical to menu.html and checkout.html) ── */
+    :root {
+      --bg:         #f7f4ef;
+      --surface:    #ffffff;
+      --border:     #e8e2d9;
+      --accent:     #c8401a;
+      --accent-dk:  #a33315;
+      --text-main:  #1a1510;
+      --text-sub:   #6b6256;
+      --badge-ok:   #d4edda;
+      --badge-ok-t: #276237;
+      --badge-no:   #f0e8e8;
+      --badge-no-t: #8c2a2a;
+      --radius:     10px;
+      --shadow:     0 2px 12px rgba(0,0,0,.07);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Georgia, "Times New Roman", serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+    }
+
+    /* ── Header (identical to menu.html and checkout.html) ── */
+    header {
+      background: var(--text-main);
+      color: #f7f4ef;
+      padding: 28px 32px 22px;
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+    }
+    header h1 { font-size: 1.75rem; font-weight: normal; letter-spacing: .02em; }
+    header span { font-size: .9rem; opacity: .55; font-style: italic; }
+
+    /* ── Page wrapper: max-width centered column ── */
+    .page-body {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 36px 20px 64px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ── Loading and error states ── */
+    #status-message {
+      text-align: center;
+      padding: 60px 0;
+      color: var(--text-sub);
+      font-style: italic;
+      font-size: 1.05rem;
+    }
+    #error-message {
+      display: none;
+      padding: 14px 18px;
+      border-radius: var(--radius);
+      border: 1.5px solid #e0b8b8;
+      background: #f8eeee;
+      color: #8c2a2a;
+      text-align: center;
+      font-size: .93rem;
+    }
+    #error-message.visible { display: block; }
+
+    /* ── Success banner: "Order Confirmed" ── */
+    .success-banner {
+      display: none; /* shown by JS after data loads */
+      background: var(--badge-ok);
+      border: 1.5px solid #b9d8c0;
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      text-align: center;
+    }
+    .success-banner.visible { display: block; }
+    .success-banner .checkmark {
+      font-size: 2.2rem;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .success-banner h2 {
+      font-size: 1.45rem;
+      font-weight: normal;
+      color: var(--badge-ok-t);
+      letter-spacing: .02em;
+    }
+    .success-banner p {
+      margin-top: 6px;
+      font-size: .88rem;
+      font-style: italic;
+      color: var(--badge-ok-t);
+      opacity: .8;
+    }
+
+    /* ── Shared card style (same shadow/border as menu item cards) ── */
+    .card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px 22px 20px;
+    }
+    .card h3 {
+      font-size: .85rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--text-sub);
+      border-bottom: 1.5px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 16px;
+      font-weight: normal;
+    }
+
+    /* ── Order meta: two-column detail rows ── */
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px 24px;
+    }
+    @media (max-width: 480px) {
+      .detail-grid { grid-template-columns: 1fr; }
+    }
+    .detail-item { display: flex; flex-direction: column; gap: 3px; }
+    .detail-label {
+      font-size: .72rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text-sub);
+    }
+    .detail-value {
+      font-size: .97rem;
+      color: var(--text-main);
+    }
+    /* Highlight the order code */
+    .detail-value.order-code {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--accent);
+      letter-spacing: .04em;
+    }
+    /* Status badge */
+    .status-badge {
+      display: inline-block;
+      font-size: .72rem;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      font-family: Arial, sans-serif;
+      padding: 3px 12px;
+      border-radius: 20px;
+      background: var(--badge-ok);
+      color: var(--badge-ok-t);
+      align-self: flex-start;
+    }
+
+    /* ── Items list ── */
+    .items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: .9rem;
+      gap: 8px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .item-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .item-row-left { display: flex; flex-direction: column; gap: 2px; }
+    .item-row-name { color: var(--text-main); font-weight: bold; }
+    .item-row-unit {
+      font-size: .78rem;
+      color: var(--text-sub);
+      font-style: italic;
+    }
+    .item-row-total {
+      color: var(--accent);
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    /* ── Pricing summary ── */
+    .pricing-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .pricing-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: .9rem;
+      color: var(--text-sub);
+    }
+    .pricing-row span:last-child { color: var(--text-main); }
+
+    .pricing-divider {
+      border: none;
+      border-top: 1.5px solid var(--border);
+      margin: 8px 0;
+    }
+    .pricing-row.total-row {
+      font-size: 1rem;
+      font-weight: bold;
+      color: var(--text-main);
+    }
+    .pricing-row.total-row span:last-child { color: var(--accent); }
+
+    /* ── Back to Menu button (matches menu.html .clear-cart-btn style) ── */
+    .btn-back {
+      display: block;
+      width: 100%;
+      padding: 13px 0;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text-sub);
+      font-size: .95rem;
+      font-family: inherit;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+      transition: border-color .18s, color .18s;
+    }
+    .btn-back:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── Hide content sections until data loads ── */
+    .order-content { display: none; }
+    .order-content.visible { display: flex; flex-direction: column; gap: 24px; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header (identical to menu.html) ── -->
+  <header>
+    <h1>Order Confirmation</h1>
+    <span>Customer Ordering System</span>
+  </header>
+
+  <div class="page-body">
+
+    <!-- ── Loading state: shown while fetch is in progress ── -->
+    <p id="status-message">Loading your order…</p>
+
+    <!-- ── Error state: shown if the API returns an error ── -->
+    <div id="error-message"></div>
+
+    <!-- ── Success banner: "Order Confirmed" ── -->
+    <div class="success-banner" id="success-banner">
+      <span class="checkmark">✓</span>
+      <h2>Order Confirmed</h2>
+      <p>Thank you! Your order has been received and is being prepared.</p>
+    </div>
+
+    <!--
+      ── All order content below ──
+      Hidden by default. JS adds class "visible" once data is ready.
+    -->
+    <div class="order-content" id="order-content">
+
+      <!-- ── Order details card ── -->
+      <div class="card">
+        <h3>Order Details</h3>
+        <div class="detail-grid">
+
+          <div class="detail-item">
+            <span class="detail-label">Order Code</span>
+            <span class="detail-value order-code" id="detail-order-code">—</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Status</span>
+            <span class="detail-value" id="detail-status">—</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Order Type</span>
+            <span class="detail-value" id="detail-order-type">—</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Payment Method</span>
+            <span class="detail-value" id="detail-payment-method">—</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Placed At</span>
+            <span class="detail-value" id="detail-created-at">—</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── Ordered items card ── -->
+      <div class="card">
+        <h3>Items Ordered</h3>
+        <div class="items-list" id="items-list">
+          <!-- Item rows injected by JS -->
+        </div>
+      </div>
+
+      <!-- ── Pricing summary card ── -->
+      <div class="card">
+        <h3>Payment Summary</h3>
+        <div class="pricing-rows">
+
+          <div class="pricing-row">
+            <span>Subtotal</span>
+            <span id="summary-subtotal">—</span>
+          </div>
+
+          <div class="pricing-row">
+            <span>Discount</span>
+            <span id="summary-discount">—</span>
+          </div>
+
+          <hr class="pricing-divider" />
+
+          <div class="pricing-row total-row">
+            <span>Total</span>
+            <span id="summary-total">—</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── Back to Menu button ── -->
+      <a href="/menu" class="btn-back">← Back to Menu</a>
+
+    </div><!-- end #order-content -->
+
+  </div><!-- end .page-body -->
+
+
+  <script>
+    /*
+      The order_code is passed from Flask into the template.
+      Jinja renders {{ order_code }} as the actual value (e.g. "ORD-00001").
+    */
+    const ORDER_CODE = "{{ order_code }}";
+
+
+    /* ── Format a datetime string into something readable ── */
+    function formatDate(isoString) {
+      if (!isoString) return "—";
+      try {
+        const d = new Date(isoString);
+        return d.toLocaleString(); // e.g. "5/16/2026, 2:34:00 PM"
+      } catch (e) {
+        return isoString; // fallback: show raw string
+      }
+    }
+
+
+    /* ── Build one item row and add it to the items list ── */
+    function renderItem(item) {
+      const list = document.getElementById("items-list");
+
+      const row = document.createElement("div");
+      row.className = "item-row";
+
+      const lineTotal = item.unit_price * item.quantity;
+
+      row.innerHTML =
+        `<div class="item-row-left">` +
+          `<span class="item-row-name">${item.name}</span>` +
+          `<span class="item-row-unit">` +
+            `${item.quantity} × $${item.unit_price.toFixed(2)}` +
+          `</span>` +
+        `</div>` +
+        `<span class="item-row-total">$${lineTotal.toFixed(2)}</span>`;
+
+      list.appendChild(row);
+    }
+
+
+    /* ── Populate all the order details on the page ── */
+    function renderOrder(order) {
+      // Order meta
+      document.getElementById("detail-order-code").textContent    = order.order_code;
+      document.getElementById("detail-order-type").textContent     = order.order_type;
+      document.getElementById("detail-payment-method").textContent = order.payment_method;
+      document.getElementById("detail-created-at").textContent     = formatDate(order.created_at);
+
+      // Status as a styled badge
+      const statusEl = document.getElementById("detail-status");
+      statusEl.innerHTML =
+        `<span class="status-badge">${order.status}</span>`;
+
+      // Items
+      const itemsList = document.getElementById("items-list");
+      itemsList.innerHTML = ""; // clear in case of re-render
+      order.items.forEach(function (item) {
+        renderItem(item);
+      });
+
+      // Pricing summary
+      document.getElementById("summary-subtotal").textContent =
+        "$" + (order.subtotal || 0).toFixed(2);
+      document.getElementById("summary-discount").textContent =
+        "$" + (order.discount_amount || 0).toFixed(2);
+      document.getElementById("summary-total").textContent =
+        "$" + (order.total || 0).toFixed(2);
+    }
+
+
+    /* ── Fetch order from the API and render the page ── */
+    async function loadOrder() {
+      try {
+        const res = await fetch("/api/order/" + ORDER_CODE);
+        const data = await res.json();
+
+        // Hide the loading message
+        document.getElementById("status-message").style.display = "none";
+
+        if (res.ok) {
+          // Render all order details
+          renderOrder(data);
+
+          // Show the success banner and content sections
+          document.getElementById("success-banner").classList.add("visible");
+          document.getElementById("order-content").classList.add("visible");
+
+        } else {
+          // Show error if the order wasn't found or another server error
+          const errBox = document.getElementById("error-message");
+          errBox.textContent = data.error || "Order not found. Please check your order code.";
+          errBox.classList.add("visible");
+        }
+
+      } catch (err) {
+        // Network or unexpected error
+        document.getElementById("status-message").style.display = "none";
+        const errBox = document.getElementById("error-message");
+        errBox.textContent = "Could not load order. Please check your connection and try again.";
+        errBox.classList.add("visible");
+        console.error("Order fetch error:", err);
+      }
+    }
+
+
+    /* ── Start loading when the page opens ── */
+    loadOrder();
+  </script>
+
+</body>
+</html>
