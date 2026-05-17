@@ -400,9 +400,7 @@
         <!-- Buttons -->
         <div class="form-actions">
           <button type="button" class="btn-back" id="back-to-menu-btn">Back to Menu</button>
-          <button type="submit" class="btn-submit" id="submit-btn">Place Order</button>
-          <!-- Extra button id used by E2E tests -->
-          <button type="button" class="btn-submit" id="place-order-btn" style="display:none;">Place Order</button>
+          <button type="submit" class="btn-submit" id="place-order-btn">Place Order</button>
         </div>
       </form>
     </div>
@@ -500,7 +498,7 @@
       const pickupTimeField = document.getElementById("pickup-time-field");
       const tableField = document.getElementById("field-table-number");
       const backBtn = document.getElementById("back-to-menu-btn");
-      const submitBtn = document.getElementById("submit-btn");
+      const submitBtn = document.getElementById("place-order-btn");
       const placeOrderBtn = document.getElementById("place-order-btn");
       const paymentSelect = document.getElementById("payment-method");
       const paymentRadios = document.querySelectorAll('input[name="payment_method_radio"]');
