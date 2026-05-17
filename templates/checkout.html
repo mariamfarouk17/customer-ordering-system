@@ -342,14 +342,21 @@
       <form class="card form-card" id="checkout-form">
         <!-- Order Type -->
         <div class="form-group">
-          <label>Order Type</label>
-          <div class="radio-group">
+          <label for="order-type">Order Type</label>
+          <!-- Select (used by E2E tests) -->
+          <select id="order-type" name="order_type">
+            <option value="Dine-In">Dine In</option>
+            <option value="Takeaway">Pickup</option>
+          </select>
+
+          <!-- Radio fallback (kept for UX parity) -->
+          <div class="radio-group" style="margin-top:8px;">
             <div class="radio-option">
-              <input type="radio" id="order-type-pickup" name="order_type" value="Takeaway" required>
+              <input type="radio" id="order-type-pickup" name="order_type_radio" value="Takeaway">
               <label for="order-type-pickup">Pickup</label>
             </div>
             <div class="radio-option">
-              <input type="radio" id="order-type-dine" name="order_type" value="Dine-In" required>
+              <input type="radio" id="order-type-dine" name="order_type_radio" value="Dine-In">
               <label for="order-type-dine">Dine In</label>
             </div>
           </div>
@@ -362,21 +369,29 @@
         </div>
 
         <!-- Table Number (conditional) -->
-        <div class="form-group conditional-field" id="table-field">
+        <div class="form-group conditional-field" id="field-table-number">
           <label for="table-number">Table Number</label>
           <input type="number" id="table-number" name="table_number" min="1" placeholder="e.g. 5" />
         </div>
 
         <!-- Payment Method -->
         <div class="form-group">
-          <label>Payment Method</label>
-          <div class="radio-group">
+          <label for="payment-method">Payment Method</label>
+          <!-- Select (used by E2E tests) -->
+          <select id="payment-method" name="payment_method">
+            <option value="Cash">Cash</option>
+            <option value="Mock Card">Card</option>
+            <option value="Mock Card Fail">Mock Card Fail (fail)</option>
+          </select>
+
+          <!-- Radio fallback -->
+          <div class="radio-group" style="margin-top:8px;">
             <div class="radio-option">
-              <input type="radio" id="payment-cash" name="payment_method" value="Cash" required>
+              <input type="radio" id="payment-cash" name="payment_method_radio" value="Cash">
               <label for="payment-cash">Cash</label>
             </div>
             <div class="radio-option">
-              <input type="radio" id="payment-card" name="payment_method" value="Mock Card" required>
+              <input type="radio" id="payment-card" name="payment_method_radio" value="Mock Card">
               <label for="payment-card">Card</label>
             </div>
           </div>
@@ -386,6 +401,8 @@
         <div class="form-actions">
           <button type="button" class="btn-back" id="back-to-menu-btn">Back to Menu</button>
           <button type="submit" class="btn-submit" id="submit-btn">Place Order</button>
+          <!-- Extra button id used by E2E tests -->
+          <button type="button" class="btn-submit" id="place-order-btn" style="display:none;">Place Order</button>
         </div>
       </form>
     </div>
@@ -471,30 +488,62 @@
       `;
 
       setupFormHandlers();
+      // Show the test-visible place-order button so E2E scripts can click it
+      const placeBtn = document.getElementById('place-order-btn');
+      if (placeBtn) placeBtn.style.display = 'inline-block';
     }
 
     function setupFormHandlers() {
       const form = document.getElementById("checkout-form");
-      const orderTypeInputs = document.querySelectorAll('input[name="order_type"]');
+      const orderTypeSelect = document.getElementById("order-type");
+      const orderTypeRadios = document.querySelectorAll('input[name="order_type_radio"]');
       const pickupTimeField = document.getElementById("pickup-time-field");
-      const tableField = document.getElementById("table-field");
+      const tableField = document.getElementById("field-table-number");
       const backBtn = document.getElementById("back-to-menu-btn");
       const submitBtn = document.getElementById("submit-btn");
+      const placeOrderBtn = document.getElementById("place-order-btn");
+      const paymentSelect = document.getElementById("payment-method");
+      const paymentRadios = document.querySelectorAll('input[name="payment_method_radio"]');
 
-      // Handle order type change
-      orderTypeInputs.forEach(input => {
-        input.addEventListener("change", function () {
-          if (this.value === "Takeaway") {
-            pickupTimeField.classList.add("visible");
-            tableField.classList.remove("visible");
-            document.getElementById("pickup-time").required = true;
-            document.getElementById("table-number").required = false;
-          } else {
-            pickupTimeField.classList.remove("visible");
-            tableField.classList.add("visible");
-            document.getElementById("pickup-time").required = false;
-            document.getElementById("table-number").required = true;
-          }
+      function applyOrderType(value) {
+        if (value === "Takeaway") {
+          pickupTimeField.classList.add("visible");
+          tableField.classList.remove("visible");
+          document.getElementById("pickup-time").required = true;
+          document.getElementById("table-number").required = false;
+        } else {
+          pickupTimeField.classList.remove("visible");
+          tableField.classList.add("visible");
+          document.getElementById("pickup-time").required = false;
+          document.getElementById("table-number").required = true;
+        }
+      }
+
+      // Sync select -> radios
+      if (orderTypeSelect) {
+        orderTypeSelect.addEventListener("change", function () {
+          applyOrderType(this.value);
+          orderTypeRadios.forEach(r => { if (r.value === this.value) r.checked = true; });
+        });
+      }
+
+      // Sync radios -> select
+      orderTypeRadios.forEach(radio => {
+        radio.addEventListener("change", function () {
+          if (orderTypeSelect) orderTypeSelect.value = this.value;
+          applyOrderType(this.value);
+        });
+      });
+
+      // Payment method sync
+      if (paymentSelect) {
+        paymentSelect.addEventListener("change", function () {
+          paymentRadios.forEach(r => { if (r.value === this.value) r.checked = true; });
+        });
+      }
+      paymentRadios.forEach(radio => {
+        radio.addEventListener("change", function () {
+          if (paymentSelect) paymentSelect.value = this.value;
         });
       });
 
@@ -503,12 +552,23 @@
         window.location.href = "/menu";
       });
 
+      // Make the E2E-visible place-order button submit the form
+      if (placeOrderBtn) {
+        placeOrderBtn.addEventListener("click", function () {
+          if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+          } else {
+            form.submit();
+          }
+        });
+      }
+
       // Form submission
       form.addEventListener("submit", async function (e) {
         e.preventDefault();
 
-        const orderType = document.querySelector('input[name="order_type"]:checked').value;
-        const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+        const orderType = orderTypeSelect ? orderTypeSelect.value : (document.querySelector('input[name="order_type_radio"]:checked')||{}).value;
+        const paymentMethod = paymentSelect ? paymentSelect.value : (document.querySelector('input[name="payment_method_radio"]:checked')||{}).value;
 
         const payload = {
           session_id: SESSION_ID,
