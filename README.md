@@ -361,9 +361,9 @@ The system solves the customer ordering problem by allowing customers to browse 
 
 | Student | Main Responsibility |
 |---|---|
-| Student 1 | Menu browsing and search |
-| Student 2 | Cart and promo code |
-| Student 3 | Checkout, order, and validation flow |
+| mariam034 | Menu browsing and search |
+| mairoun136| Cart and promo code |
+| maram175 | Checkout, order, and validation flow |
 
 ---
 
